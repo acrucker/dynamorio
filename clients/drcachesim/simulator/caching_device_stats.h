@@ -57,6 +57,9 @@ class caching_device_stats_t
     // Called on each access by a child caching device.
     virtual void child_access(const memref_t &memref, bool hit);
 
+    // Count instructions for MPKI
+    virtual void reg_inst();
+
     virtual void print_stats(std::string prefix);
 
     virtual void reset();
@@ -72,6 +75,8 @@ class caching_device_stats_t
     virtual void print_child_stats(std::string prefix); // child/total info
 
     virtual void dump_miss(const memref_t &memref);
+
+    int_least64_t num_instructions;
 
     int_least64_t num_hits;
     int_least64_t num_misses;

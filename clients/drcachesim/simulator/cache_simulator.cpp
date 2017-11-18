@@ -56,51 +56,64 @@
 // just one option in the middle: should we switch to a struct of options
 // where we can set by field name?
 analysis_tool_t *
-cache_simulator_create(unsigned int num_cores,
-                       unsigned int line_size,
-                       uint64_t L1I_size,
-                       uint64_t L1D_size,
-                       unsigned int L1I_assoc,
-                       unsigned int L1D_assoc,
-                       uint64_t LL_size,
-                       unsigned int LL_assoc,
+cache_simulator_create(unsigned int      num_cores,
+                       unsigned int      line_size,
+                       uint64_t          L1I_size,
+                       uint64_t          L1D_size,
+                       unsigned int      L1I_assoc,
+                       unsigned int      L1D_assoc,
+                       uint64_t          L2_size,
+                       unsigned int      L2_assoc,
+                       uint64_t          L3_size,
+                       unsigned int      L3_assoc,
+                       uint64_t          L4_size,
+                       unsigned int      L4_assoc,
                        const std::string &LL_miss_file,
                        const std::string &replace_policy,
                        const std::string &data_prefetcher,
-                       uint64_t skip_refs,
-                       uint64_t warmup_refs,
-                       uint64_t sim_refs,
-                       unsigned int verbose)
+                       uint64_t          skip_refs,
+                       uint64_t          warmup_refs,
+                       uint64_t          sim_refs,
+                       unsigned int      verbose)
 {
     return new cache_simulator_t(num_cores, line_size, L1I_size, L1D_size,
-                                 L1I_assoc, L1D_assoc, LL_size, LL_assoc,
+                                 L1I_assoc, L1D_assoc, L2_size, L2_assoc,
+                                 L3_size, L3_assoc, L4_size, L4_assoc,
                                  LL_miss_file, replace_policy, data_prefetcher,
                                  skip_refs,warmup_refs, sim_refs, verbose);
 }
 
-cache_simulator_t::cache_simulator_t(unsigned int num_cores,
-                                     unsigned int line_size,
-                                     uint64_t L1I_size,
-                                     uint64_t L1D_size,
-                                     unsigned int L1I_assoc,
-                                     unsigned int L1D_assoc,
-                                     uint64_t LL_size,
-                                     unsigned int LL_assoc,
+cache_simulator_t::cache_simulator_t(unsigned int      num_cores,
+                                     unsigned int      line_size,
+                                     uint64_t          L1I_size,
+                                     uint64_t          L1D_size,
+                                     unsigned int      L1I_assoc,
+                                     unsigned int      L1D_assoc,
+                                     uint64_t          L2_size,
+                                     unsigned int      L2_assoc,
+                                     uint64_t          L3_size,
+                                     unsigned int      L3_assoc,
+                                     uint64_t          L4_size,
+                                     unsigned int      L4_assoc,
                                      const std::string &LL_miss_file,
                                      const std::string &replace_policy,
                                      const std::string &data_prefetcher,
-                                     uint64_t skip_refs,
-                                     uint64_t warmup_refs,
-                                     uint64_t sim_refs,
-                                     unsigned int verbose) :
+                                     uint64_t          skip_refs,
+                                     uint64_t          warmup_refs,
+                                     uint64_t          sim_refs,
+                                     unsigned int      verbose) :
     simulator_t(num_cores, skip_refs,warmup_refs, sim_refs, verbose),
     knob_line_size(line_size),
     knob_L1I_size(L1I_size),
     knob_L1D_size(L1D_size),
     knob_L1I_assoc(L1I_assoc),
     knob_L1D_assoc(L1D_assoc),
-    knob_LL_size(LL_size),
-    knob_LL_assoc(LL_assoc),
+    knob_L2_size(L2_size),
+    knob_L2_assoc(L2_assoc),
+    knob_L3_size(L3_size),
+    knob_L3_assoc(L3_assoc),
+    knob_L4_size(L4_size),
+    knob_L4_assoc(L4_assoc),
     knob_LL_miss_file(LL_miss_file),
     knob_replace_policy(replace_policy),
     knob_data_prefetcher(data_prefetcher),
@@ -109,8 +122,14 @@ cache_simulator_t::cache_simulator_t(unsigned int num_cores,
 {
     // XXX i#1703: get defaults from hardware being run on.
 
-    llcache = create_cache(knob_replace_policy);
-    if (llcache == NULL) {
+    l4cache = create_cache(knob_replace_policy);
+    if (l4cache == NULL) {
+        success = false;
+        return;
+    }
+
+    l3cache = create_cache(knob_replace_policy);
+    if (l3cache == NULL) {
         success = false;
         return;
     }
@@ -122,17 +141,27 @@ cache_simulator_t::cache_simulator_t(unsigned int num_cores,
         return;
     }
 
-    if (!llcache->init(knob_LL_assoc, (int)knob_line_size,
-                       (int)knob_LL_size, NULL, new cache_stats_t(knob_LL_miss_file))) {
-        ERRMSG("Usage error: failed to initialize LL cache.  Ensure sizes and "
+    if (!l4cache->init(knob_L4_assoc, (int)knob_line_size,
+                       (int)knob_L4_size, NULL, new cache_stats_t(knob_LL_miss_file))) {
+        ERRMSG("Usage error: failed to initialize L4 cache.  Ensure sizes and "
                "associativity are powers of 2, that the total size is a multiple "
                "of the line size, and that any miss file path is writable.\n");
         success = false;
         return;
     }
 
-    icaches = new cache_t* [knob_num_cores];
-    dcaches = new cache_t* [knob_num_cores];
+    if (!l3cache->init(knob_L3_assoc, (int)knob_line_size,
+                       (int)knob_L3_size, l4cache, new cache_stats_t)) {
+        ERRMSG("Usage error: failed to initialize L3 cache.  Ensure sizes and "
+               "associativity are powers of 2, that the total size is a multiple "
+               "of the line size, and that any miss file path is writable.\n");
+        success = false;
+        return;
+    }
+
+    icaches  = new cache_t* [knob_num_cores];
+    dcaches  = new cache_t* [knob_num_cores];
+    l2caches = new cache_t* [knob_num_cores];
     for (int i = 0; i < knob_num_cores; i++) {
         icaches[i] = create_cache(knob_replace_policy);
         if (icaches[i] == NULL) {
@@ -144,11 +173,25 @@ cache_simulator_t::cache_simulator_t(unsigned int num_cores,
             success = false;
             return;
         }
+        l2caches[i] = create_cache(knob_replace_policy);
+        if (l2caches[i] == NULL) {
+            success = false;
+            return;
+        }
+
+        if (!l2caches[i]->init(knob_L2_assoc, (int)knob_line_size,
+                           (int)knob_L2_size, l3cache, new cache_stats_t)) {
+            ERRMSG("Usage error: failed to initialize L2 caches.  Ensure sizes and "
+                   "associativity are powers of 2, that the total size is a multiple "
+                   "of the line size, and that any miss file path is writable.\n");
+            success = false;
+            return;
+        }
 
         if (!icaches[i]->init(knob_L1I_assoc, (int)knob_line_size,
-                              (int)knob_L1I_size, llcache, new cache_stats_t) ||
+                              (int)knob_L1I_size, l2caches[i], new cache_stats_t) ||
             !dcaches[i]->init(knob_L1D_assoc, (int)knob_line_size,
-                              (int)knob_L1D_size, llcache, new cache_stats_t,
+                              (int)knob_L1D_size, l2caches[i], new cache_stats_t,
                               data_prefetcher == PREFETCH_POLICY_NEXTLINE ?
                               new prefetcher_t((int)knob_line_size) : nullptr)) {
             ERRMSG("Usage error: failed to initialize L1 caches.  Ensure sizes and "
@@ -167,15 +210,25 @@ cache_simulator_t::cache_simulator_t(unsigned int num_cores,
 
 cache_simulator_t::~cache_simulator_t()
 {
-    if (llcache == NULL)
+    if (l4cache == NULL)
         return;
-    delete llcache->get_stats();
-    delete llcache->get_prefetcher();
-    delete llcache;
+    delete l4cache->get_stats();
+    delete l4cache->get_prefetcher();
+    delete l4cache;
+    if (l3cache == NULL)
+        return;
+    delete l3cache->get_stats();
+    delete l3cache->get_prefetcher();
+    delete l3cache;
     if (icaches == NULL)
         return;
     for (int i = 0; i < knob_num_cores; i++) {
         // Try to handle failure during construction.
+        if (l2caches[i] == NULL)
+            return;
+        delete l2caches[i]->get_stats();
+        delete l2caches[i]->get_prefetcher();
+        delete l2caches[i];
         if (icaches[i] == NULL)
             return;
         delete icaches[i]->get_stats();
@@ -217,6 +270,14 @@ cache_simulator_t::process_memref(const memref_t &memref)
         core = core_for_thread(memref.data.tid);
         last_thread = memref.data.tid;
         last_core = core;
+    }
+
+    if (type_is_instr(memref.instr.type)) {
+        icaches[core]->get_stats()->reg_inst();
+        dcaches[core]->get_stats()->reg_inst();
+        l2caches[core]->get_stats()->reg_inst();
+        l3cache->get_stats()->reg_inst();
+        l4cache->get_stats()->reg_inst();
     }
 
     if (type_is_instr(memref.instr.type) ||
@@ -261,8 +322,10 @@ cache_simulator_t::process_memref(const memref_t &memref)
             for (int i = 0; i < knob_num_cores; i++) {
                 icaches[i]->get_stats()->reset();
                 dcaches[i]->get_stats()->reset();
+                l2caches[i]->get_stats()->reset();
             }
-            llcache->get_stats()->reset();
+            l3cache->get_stats()->reset();
+            l4cache->get_stats()->reset();
         }
     }
     else {
@@ -283,10 +346,14 @@ cache_simulator_t::print_results()
             icaches[i]->get_stats()->print_stats("    ");
             std::cerr << "  L1D stats:" << std::endl;
             dcaches[i]->get_stats()->print_stats("    ");
+            std::cerr << "  L2 stats:" << std::endl;
+            l2caches[i]->get_stats()->print_stats("    ");
         }
     }
-    std::cerr << "LL stats:" << std::endl;
-    llcache->get_stats()->print_stats("    ");
+    std::cerr << "L3 stats:" << std::endl;
+    l3cache->get_stats()->print_stats("    ");
+    std::cerr << "L4 stats:" << std::endl;
+    l4cache->get_stats()->print_stats("    ");
     return true;
 }
 

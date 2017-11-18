@@ -40,20 +40,24 @@
 
 // These options are currently documented in ../common/options.cpp.
 analysis_tool_t *
-cache_simulator_create(unsigned int num_cores = 4,
-                       unsigned int line_size = 64,
-                       uint64_t L1I_size = 32*1024U,
-                       uint64_t L1D_size = 32*1024U,
-                       unsigned int L1I_assoc = 8,
-                       unsigned int L1D_assoc = 8,
-                       uint64_t LL_size = 8*1024*1024,
-                       unsigned int LL_assoc = 16,
-                       const std::string &LL_miss_file = "",
-                       const std::string &replace_policy = "LRU",
+cache_simulator_create(unsigned int num_cores             = 4,
+                       unsigned int line_size             = 64,
+                       uint64_t L1I_size                  = 32*1024U,
+                       uint64_t L1D_size                  = 32*1024U,
+                       unsigned int L1I_assoc             = 8,
+                       unsigned int L1D_assoc             = 8,
+                       uint64_t L2_size                   = 256*1024,
+                       unsigned int L2_assoc              = 16,
+                       uint64_t L3_size                   = 8*1024*1024,
+                       unsigned int L3_assoc              = 16,
+                       uint64_t L4_size                   = 1024*1024*1024,
+                       unsigned int L4_assoc              = 16,
+                       const std::string &LL_miss_file    = "",
+                       const std::string &replace_policy  = "LRU",
                        const std::string &data_prefetcher = "nextline",
-                       uint64_t skip_refs = 0,
-                       uint64_t warmup_refs = 0,
-                       uint64_t sim_refs = 1ULL << 63,
-                       unsigned int verbose = 0);
+                       uint64_t skip_refs                 = 0,
+                       uint64_t warmup_refs               = 0,
+                       uint64_t sim_refs                  = 1ULL << 63,
+                       unsigned int verbose               = 0);
 
 #endif /* _CACHE_SIMULATOR_CREATE_H_ */
