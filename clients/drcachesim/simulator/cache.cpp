@@ -39,6 +39,7 @@ cache_t::init(int associativity_, int line_size_, int total_size,
               caching_device_t *parent_, caching_device_stats_t *stats_,
               prefetcher_t *prefetcher_)
 {
+    instructions = 0;
     // convert total_size to num_blocks to fit for caching_device_t::init
     int num_lines = total_size / line_size_;
 
@@ -60,6 +61,12 @@ cache_t::request(const memref_t &memref_in)
     // FIXME i#1726: if the request is a data write, we should check the
     // instr cache and invalidate the cache line there if necessary on x86.
     caching_device_t::request(memref_in);
+}
+
+void
+cache_t::reg_instruction()
+{
+    instructions++;
 }
 
 void

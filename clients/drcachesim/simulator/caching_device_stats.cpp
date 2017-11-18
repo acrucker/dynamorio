@@ -36,7 +36,8 @@
 #include "caching_device_stats.h"
 
 caching_device_stats_t::caching_device_stats_t(const std::string &miss_file) :
-    success(true), num_hits(0), num_misses(0), num_child_hits(0), file(nullptr)
+    success(true), num_instructions(0), num_hits(0), num_misses(0), 
+    num_child_hits(0), file(nullptr)
 {
     if (miss_file.empty()) {
         dump_misses = false;
@@ -110,6 +111,8 @@ caching_device_stats_t::dump_miss(const memref_t &memref)
 void
 caching_device_stats_t::print_counts(std::string prefix)
 {
+    std::cerr << prefix << std::setw(18) << std::left << "Instructions:" <<
+        std::setw(20) << std::right << num_instructions << std::endl;
     std::cerr << prefix << std::setw(18) << std::left << "Hits:" <<
         std::setw(20) << std::right << num_hits << std::endl;
     std::cerr << prefix << std::setw(18) << std::left << "Misses:" <<
@@ -150,6 +153,12 @@ caching_device_stats_t::print_stats(std::string prefix)
     print_rates(prefix);
     print_child_stats(prefix);
     std::cerr.imbue(std::locale("C")); // Reset to avoid affecting later prints.
+}
+
+void
+caching_device_stats_t::reg_inst()
+{
+    num_instructions++;
 }
 
 void

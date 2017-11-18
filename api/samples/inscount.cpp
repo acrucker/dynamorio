@@ -150,6 +150,7 @@ event_bb_analysis(void *drcontext, void *tag, instrlist_t *bb,
     instrlist_disassemble(drcontext, tag, bb, STDOUT);
 # endif
 #endif
+#if 0
     /* Only count in app BBs */
     if (only_from_app.get_value()) {
         module_data_t *mod = dr_lookup_module(dr_fragment_app_pc(tag));
@@ -162,6 +163,7 @@ event_bb_analysis(void *drcontext, void *tag, instrlist_t *bb,
             }
         }
     }
+#endif
     /* Count instructions */
     for (instr = instrlist_first_app(bb), num_instrs = 0;
          instr != NULL;
@@ -190,9 +192,11 @@ event_app_instruction(void *drcontext, void *tag, instrlist_t *bb, instr_t *inst
     drmgr_disable_auto_predication(drcontext, bb);
     if (!drmgr_is_first_instr(drcontext, instr))
         return DR_EMIT_DEFAULT;
+#if 0
     /* Only insert calls for in-app BBs */
     if (user_data == NULL)
         return DR_EMIT_DEFAULT;
+#endif
     /* Insert clean call */
     num_instrs = (uint)(ptr_uint_t)user_data;
     dr_insert_clean_call(drcontext, bb, instrlist_first_app(bb),

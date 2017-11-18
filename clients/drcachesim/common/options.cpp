@@ -94,14 +94,34 @@ droption_t<unsigned int> op_L1D_assoc
 (DROPTION_SCOPE_FRONTEND, "L1D_assoc", 8, "Data cache associativity",
  "Specifies the associativity of each L1 data cache.  Must be a power of 2.");
 
-droption_t<bytesize_t> op_LL_size
-(DROPTION_SCOPE_FRONTEND, "LL_size", 8*1024*1024, "Last-level cache total size",
- "Specifies the total size of the unified last-level (L2) cache.  Must be a power of 2 "
+droption_t<bytesize_t> op_L2_size
+(DROPTION_SCOPE_FRONTEND, "L2_size", 256*1024, "L2 cache per-core size",
+ "Specifies the total size of the per-core L2 cache.  Must be a power of 2 "
  "and a multiple of -line_size.");
 
-droption_t<unsigned int> op_LL_assoc
-(DROPTION_SCOPE_FRONTEND, "LL_assoc", 16, "Last-level cache associativity",
- "Specifies the associativity of the unified last-level (L2) cache.  "
+droption_t<unsigned int> op_L2_assoc
+(DROPTION_SCOPE_FRONTEND, "L2_assoc", 16, "Per-core L2 cache associativity",
+ "Specifies the associativity of the per-core L2 cache.  "
+ "Must be a power of 2.");
+
+droption_t<bytesize_t> op_L3_size
+(DROPTION_SCOPE_FRONTEND, "L3_size", 16*1024*1024, "L3 cache total size",
+ "Specifies the total size of the unified L3 cache.  Must be a power of 2 "
+ "and a multiple of -line_size.");
+
+droption_t<unsigned int> op_L3_assoc
+(DROPTION_SCOPE_FRONTEND, "L3_assoc", 16, "L3 cache associativity",
+ "Specifies the associativity of the unified L3 cache.  "
+ "Must be a power of 2.");
+
+droption_t<bytesize_t> op_L4_size
+(DROPTION_SCOPE_FRONTEND, "L4_size", 1024*1024*1024, "Last-level cache total size",
+ "Specifies the total size of the unified last-level (L4) cache.  Must be a power of 2 "
+ "and a multiple of -line_size.");
+
+droption_t<unsigned int> op_L4_assoc
+(DROPTION_SCOPE_FRONTEND, "L4_assoc", 16, "Last-level cache associativity",
+ "Specifies the associativity of the unified last-level (L4) cache.  "
  "Must be a power of 2.");
 
 droption_t<std::string> op_LL_miss_file
