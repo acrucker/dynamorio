@@ -52,7 +52,7 @@ class caching_device_block_t
     // replacement algorithms without errors (and we expect negligible perf cost), as
     // we expect any use of counter to only occur *after* a valid tag is put in place,
     // where for the current replacement code we also set the counter at that time.
-    caching_device_block_t() : tag(TAG_INVALID), counter(0) {}
+    caching_device_block_t() : tag(TAG_INVALID), counter(0), wearout_counter(0) {}
     // Destructor must be virtual and default is not.
     virtual ~caching_device_block_t() {}
 
@@ -62,6 +62,8 @@ class caching_device_block_t
     // A 32-bit counter should be sufficient but we may want to revisit.
     // We already have stdint.h so we can reinstate int_least64_t easily.
     int counter; // for use by replacement policies
+
+    int_least64_t wearout_counter;
 };
 
 #endif /* _CACHING_DEVICE_BLOCK_H_ */

@@ -36,6 +36,8 @@
 #include "prefetcher.h"
 #include "../common/utils.h"
 #include <assert.h>
+#include <iostream>
+#include <iomanip>
 
 caching_device_t::caching_device_t() :
     blocks(NULL), stats(NULL), prefetcher(NULL)
@@ -143,6 +145,7 @@ caching_device_t::request(const memref_t &memref_in)
 
             way = replace_which_way(block_idx);
             get_caching_device_block(block_idx, way).tag = tag;
+            write_update(block_idx, way);
         }
 
         access_update(block_idx, way);
@@ -163,6 +166,33 @@ caching_device_t::request(const memref_t &memref_in)
         last_way = way;
         last_block_idx = block_idx;
     }
+}
+
+void
+caching_device_t::write_update(int block_idx, int way)
+{
+    get_caching_device_block(block_idx, way).wearout_counter++;
+}
+
+void
+caching_device_t::print_wearout(std::string prefix)
+{
+    int_least64_t max_wearout = 0;
+    int_least64_t total_wearout = 0;
+    for (int i=0; i<num_blocks; i++) {
+        if(blocks[i]->wearout_counter > max_wearout)
+            max_wearout = blocks[i]->wearout_counter;
+
+        total_wearout += blocks[i]->wearout_counter;
+    }
+
+    std::cerr << prefix << std::setw(18) << std::left << "Maximum wear:" <<
+        std::setw(20) << std::right << max_wearout << std::endl;
+    std::cerr << prefix << std::setw(18) << std::left << "Mean wear:" <<
+        std::setw(20) << std::fixed << std::setprecision(2) << std::right <<
+        ((float)total_wearout/num_blocks) << std::endl;
+    std::cerr << prefix << std::setw(18) << std::left << "Total updates:" <<
+        std::setw(20) << std::right << total_wearout << std::endl;
 }
 
 void
