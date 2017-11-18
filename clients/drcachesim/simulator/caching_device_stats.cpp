@@ -117,6 +117,9 @@ caching_device_stats_t::print_counts(std::string prefix)
         std::setw(20) << std::right << num_hits << std::endl;
     std::cerr << prefix << std::setw(18) << std::left << "Misses:" <<
         std::setw(20) << std::right << num_misses << std::endl;
+    std::cerr << prefix << std::setw(18) << std::left << "MPKI:" <<
+        std::setw(20) << std::fixed << std::setprecision(2) << std::right <<
+        ((float)num_misses*1000/(num_instructions)) << std::endl;
 }
 
 void
@@ -129,6 +132,7 @@ caching_device_stats_t::print_rates(std::string prefix)
         std::cerr << prefix << std::setw(18) << std::left << miss_label <<
             std::setw(20) << std::fixed << std::setprecision(2) << std::right <<
             ((float)num_misses*100/(num_hits+num_misses)) << "%" << std::endl;
+
     }
 }
 
@@ -142,6 +146,7 @@ caching_device_stats_t::print_child_stats(std::string prefix)
             std::setw(20) << std::fixed << std::setprecision(2) << std::right <<
             ((float)num_misses*100/(num_hits+num_child_hits+num_misses)) << "%" <<
             std::endl;
+
     }
 }
 

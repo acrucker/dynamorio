@@ -354,6 +354,8 @@ cache_simulator_t::print_results()
     l3cache->get_stats()->print_stats("    ");
     std::cerr << "L4 stats:" << std::endl;
     l4cache->get_stats()->print_stats("    ");
+    std::cerr << "L4 wearout stats:" << std::endl;
+    l4cache->print_wearout("    ");
     return true;
 }
 

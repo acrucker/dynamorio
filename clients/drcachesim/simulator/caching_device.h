@@ -64,8 +64,11 @@ class caching_device_t
     prefetcher_t *get_prefetcher() const { return prefetcher; }
     caching_device_t *get_parent() const { return parent; }
 
+    virtual void print_wearout(std::string prefix);
+
  protected:
     virtual void access_update(int block_idx, int way);
+    virtual void write_update(int block_idx, int way);
     virtual int replace_which_way(int block_idx);
 
     inline addr_t compute_tag(addr_t addr) { return addr >> block_size_bits; }
