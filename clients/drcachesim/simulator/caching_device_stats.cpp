@@ -36,8 +36,8 @@
 #include "caching_device_stats.h"
 
 caching_device_stats_t::caching_device_stats_t(const std::string &miss_file) :
-    success(true), num_instructions(0), num_hits(0), num_misses(0), 
-    num_child_hits(0), file(nullptr)
+    success(true), clean_evicts(0), dirty_evicts(0), num_instructions(0), 
+    num_hits(0), num_misses(0), num_child_hits(0), file(nullptr)
 {
     if (miss_file.empty()) {
         dump_misses = false;
@@ -120,7 +120,21 @@ caching_device_stats_t::print_counts(std::string prefix)
     std::cerr << prefix << std::setw(18) << std::left << "MPKI:" <<
         std::setw(20) << std::fixed << std::setprecision(2) << std::right <<
         ((float)num_misses*1000/(num_instructions)) << std::endl;
+    std::cerr << prefix << std::setw(18) << std::left << "Clean evicts:" <<
+        std::setw(20) << std::right << clean_evicts << std::endl;
+    std::cerr << prefix << std::setw(18) << std::left << "Dirty evicts:" <<
+        std::setw(20) << std::right << dirty_evicts << std::endl;
 }
+
+void
+caching_device_stats_t::evict(bool clean)
+{
+    if (clean)
+        clean_evicts++;
+    else
+        dirty_evicts++;
+}
+
 
 void
 caching_device_stats_t::print_rates(std::string prefix)
@@ -132,7 +146,6 @@ caching_device_stats_t::print_rates(std::string prefix)
         std::cerr << prefix << std::setw(18) << std::left << miss_label <<
             std::setw(20) << std::fixed << std::setprecision(2) << std::right <<
             ((float)num_misses*100/(num_hits+num_misses)) << "%" << std::endl;
-
     }
 }
 

@@ -54,6 +54,11 @@ class caching_device_stats_t
     // separately for each block touched.
     virtual void access(const memref_t &memref, bool hit);
 
+    // Called on each access.
+    // A multi-block memory reference invokes this routine
+    // separately for each block touched.
+    virtual void evict(bool clean);
+
     // Called on each access by a child caching device.
     virtual void child_access(const memref_t &memref, bool hit);
 
@@ -75,6 +80,9 @@ class caching_device_stats_t
     virtual void print_child_stats(std::string prefix); // child/total info
 
     virtual void dump_miss(const memref_t &memref);
+
+    int_least64_t clean_evicts;
+    int_least64_t dirty_evicts;
 
     int_least64_t num_instructions;
 
