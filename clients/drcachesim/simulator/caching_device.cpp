@@ -35,6 +35,7 @@
 #include "caching_device_stats.h"
 #include "prefetcher.h"
 #include "../common/utils.h"
+#include "../common/trace_entry.h"
 #include <assert.h>
 #include <iostream>
 #include <iomanip>
@@ -125,6 +126,10 @@ caching_device_t::request(const memref_t &memref_in)
 
         for (way = 0; way < associativity; ++way) {
             if (get_caching_device_block(block_idx, way).tag == tag) {
+                if (type_is_write(memref.data.type)) {
+                    write_update(block_idx, way);
+                    get_caching_device_block(block_idx, way).dirty = true;
+                }
                 stats->access(memref, true/*hit*/);
                 if (parent != NULL)
                     parent->stats->child_access(memref, true);
@@ -141,10 +146,26 @@ caching_device_t::request(const memref_t &memref_in)
                 parent->request(memref);
             }
 
+
             // FIXME i#1726: coherence policy
 
             way = replace_which_way(block_idx);
+            //caching_device_block_t &b = get_caching_device_block(block_idx, way);
+            if (get_caching_device_block(block_idx, way).dirty) {
+                memref_t wb;
+                wb.data.type = TRACE_TYPE_WRITE;
+                wb.data.pid = memref.data.pid;
+                wb.data.tid = memref.data.tid;
+                wb.data.addr = get_caching_device_block(block_idx, way).tag*(block_size*num_blocks/associativity);
+                wb.data.size = block_size;
+                wb.data.pc = 0;
+                parent->request(wb);
+            }
+
+            if (get_caching_device_block(block_idx, way).tag != TAG_INVALID)
+                stats->evict(!get_caching_device_block(block_idx, way).dirty);
             get_caching_device_block(block_idx, way).tag = tag;
+            get_caching_device_block(block_idx, way).dirty = false;
             write_update(block_idx, way);
         }
 

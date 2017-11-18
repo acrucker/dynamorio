@@ -49,10 +49,8 @@ class cache_t : public caching_device_t
                       caching_device_t *parent, caching_device_stats_t *stats,
                       prefetcher_t *prefetcher = nullptr);
     virtual void request(const memref_t &memref);
-    virtual void reg_instruction();
     virtual void flush(const memref_t &memref);
  protected:
-    unsigned long long int instructions;
     virtual void init_blocks();
 };
 
