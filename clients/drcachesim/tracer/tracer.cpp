@@ -1207,15 +1207,15 @@ init_thread_in_process(void *drcontext)
          * Since we're now in a subdir we could make the name simpler but this
          * seems nice and complete.
          */
-        int i;
-        const int NUM_OF_TRIES = 10000;
+        const int max_ns_sleep = 1000*1000*500;
+        int ns_sleep;
         uint flags = IF_UNIX(DR_FILE_CLOSE_ON_FORK |)
             DR_FILE_ALLOW_LARGE | DR_FILE_WRITE_REQUIRE_NEW;
         /* We use drx_open_unique_appid_file with DRX_FILE_SKIP_OPEN to get a
          * file name for creation.  Retry if the same name file already exists.
          * Abort if we fail too many times.
          */
-        for (i = 0; i < NUM_OF_TRIES; i++) {
+        for (ns_sleep = 1000; ns_sleep < max_ns_sleep; ns_sleep *= 2) {
             drx_open_unique_appid_file(logsubdir,
                                        dr_get_thread_id(drcontext),
                                        OUTFILE_PREFIX, OUTFILE_SUFFIX,
@@ -1226,7 +1226,7 @@ init_thread_in_process(void *drcontext)
             if (data->file != INVALID_FILE)
                 break;
         }
-        if (i == NUM_OF_TRIES) {
+        if (ns_sleep > max_ns_sleep) {
             FATAL("Fatal error: failed to create trace file %s\n", buf);
         }
         NOTIFY(2, "Created thread trace file %s\n", buf);
