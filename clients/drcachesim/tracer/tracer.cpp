@@ -87,6 +87,10 @@ static file_t module_file;
  */
 // XXX i#1703: use an option instead.
 #define MAX_NUM_ENTRIES 4096
+
+/* Directory holding traces for CS349D project */
+#define CS349D_TRACE_DIR ("/home/cs349d/trace/")
+
 /* The buffer size for holding trace entries. */
 static size_t trace_buf_size;
 /* The redzone is allocated right after the trace buffer.
@@ -1202,39 +1206,40 @@ init_thread_in_process(void *drcontext)
 {
     per_thread_t *data = (per_thread_t *) drmgr_get_tls_field(drcontext, tls_idx);
     char buf[MAXIMUM_PATH];
-    char buf2[MAXIMUM_PATH];
+    char path_buf[MAXIMUM_PATH];
     byte *proc_info;
     if (op_offline.get_value()) {
         /* We do not need to call drx_init before using drx_open_unique_appid_file.
          * Since we're now in a subdir we could make the name simpler but this
          * seems nice and complete.
          */
-        const int max_us_sleep = 1000*1000*5;
-        int us_sleep;
+        int i;
+        const int NUM_OF_TRIES = 10000;
         uint flags = IF_UNIX(DR_FILE_CLOSE_ON_FORK |)
             DR_FILE_ALLOW_LARGE | DR_FILE_WRITE_REQUIRE_NEW;
         /* We use drx_open_unique_appid_file with DRX_FILE_SKIP_OPEN to get a
          * file name for creation.  Retry if the same name file already exists.
          * Abort if we fail too many times.
          */
-        for (us_sleep = 10000; us_sleep < max_us_sleep; us_sleep *= 2) {
+        for (i = 0; i < NUM_OF_TRIES; i++) {
             drx_open_unique_appid_file(logsubdir,
                                        dr_get_thread_id(drcontext),
                                        OUTFILE_PREFIX, OUTFILE_SUFFIX,
                                        DRX_FILE_SKIP_OPEN,
                                        buf, BUFFER_SIZE_ELEMENTS(buf));
             NULL_TERMINATE_BUFFER(buf);
-	    sprintf(buf2, "%s", "/home/cs349d/trace/");
-	    strcat(buf2, buf+2);
-            data->file = file_ops_func.open_file(buf2, flags);
-            if (data->file != INVALID_FILE || us_sleep > max_us_sleep)
+            /* Turn relative path into absolute path for trace log file */
+            sprintf(path_buf, "%s", CS349D_TRACE_DIR);
+            int num_leading_dot_slash = strspn(buf, "./");
+            strcat(path_buf, buf + num_leading_dot_slash);
+            data->file = file_ops_func.open_file(path_buf, flags);
+            if (data->file != INVALID_FILE)
                 break;
-	    usleep(us_sleep);
         }
-        if (us_sleep > max_us_sleep) {
-            FATAL("Fatal error: failed to create trace file %s\n", buf2);
+        if (i == NUM_OF_TRIES) {
+            FATAL("Fatal error: failed to create trace file %s\n", path_buf);
         }
-        NOTIFY(2, "Created thread trace file %s\n", buf2);
+        NOTIFY(2, "Created thread trace file %s\n", path_buf);
 
         /* Write initial headers at the top of the first buffer. */
         data->init_header_size =
