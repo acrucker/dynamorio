@@ -42,6 +42,7 @@
 #include <limits.h>
 #include <string.h>
 #include <string>
+#include <sys/stat.h>
 #include "dr_api.h"
 #include "drmgr.h"
 #include "drmemtrace.h"
@@ -1201,35 +1202,39 @@ init_thread_in_process(void *drcontext)
 {
     per_thread_t *data = (per_thread_t *) drmgr_get_tls_field(drcontext, tls_idx);
     char buf[MAXIMUM_PATH];
+    char buf2[MAXIMUM_PATH];
     byte *proc_info;
     if (op_offline.get_value()) {
         /* We do not need to call drx_init before using drx_open_unique_appid_file.
          * Since we're now in a subdir we could make the name simpler but this
          * seems nice and complete.
          */
-        const int max_ns_sleep = 1000*1000*500;
-        int ns_sleep;
+        const int max_us_sleep = 1000*1000*5;
+        int us_sleep;
         uint flags = IF_UNIX(DR_FILE_CLOSE_ON_FORK |)
             DR_FILE_ALLOW_LARGE | DR_FILE_WRITE_REQUIRE_NEW;
         /* We use drx_open_unique_appid_file with DRX_FILE_SKIP_OPEN to get a
          * file name for creation.  Retry if the same name file already exists.
          * Abort if we fail too many times.
          */
-        for (ns_sleep = 1000; ns_sleep < max_ns_sleep; ns_sleep *= 2) {
+        for (us_sleep = 10000; us_sleep < max_us_sleep; us_sleep *= 2) {
             drx_open_unique_appid_file(logsubdir,
                                        dr_get_thread_id(drcontext),
                                        OUTFILE_PREFIX, OUTFILE_SUFFIX,
                                        DRX_FILE_SKIP_OPEN,
                                        buf, BUFFER_SIZE_ELEMENTS(buf));
             NULL_TERMINATE_BUFFER(buf);
-            data->file = file_ops_func.open_file(buf, flags);
-            if (data->file != INVALID_FILE)
+	    sprintf(buf2, "%s", "/home/cs349d/trace/");
+	    strcat(buf2, buf+2);
+            data->file = file_ops_func.open_file(buf2, flags);
+            if (data->file != INVALID_FILE || us_sleep > max_us_sleep)
                 break;
+	    usleep(us_sleep);
         }
-        if (ns_sleep > max_ns_sleep) {
-            FATAL("Fatal error: failed to create trace file %s\n", buf);
+        if (us_sleep > max_us_sleep) {
+            FATAL("Fatal error: failed to create trace file %s\n", buf2);
         }
-        NOTIFY(2, "Created thread trace file %s\n", buf);
+        NOTIFY(2, "Created thread trace file %s\n", buf2);
 
         /* Write initial headers at the top of the first buffer. */
         data->init_header_size =
@@ -1391,6 +1396,7 @@ init_offline_dir(void)
         /* open the dir */
         if (file_ops_func.create_dir(buf))
             break;
+	chmod(buf, S_IRWXU|S_IRWXG|S_IRWXO);
     }
     if (i == NUM_OF_TRIES)
         return false;
@@ -1402,6 +1408,7 @@ init_offline_dir(void)
     NULL_TERMINATE_BUFFER(logsubdir);
     if (!file_ops_func.create_dir(logsubdir))
         return false;
+    chmod(logsubdir, S_IRWXU|S_IRWXG|S_IRWXO);
     /* If the ops are replaced, it's up the replacer to notify the user.
      * In some cases data is sent over the network and the replaced create_dir is
      * a nop that returns true, in which case we don't want this message.
