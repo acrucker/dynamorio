@@ -159,7 +159,8 @@ caching_device_t::request(const memref_t &memref_in)
                 wb.data.addr = get_caching_device_block(block_idx, way).tag*(block_size*num_blocks/associativity);
                 wb.data.size = block_size;
                 wb.data.pc = 0;
-                parent->request(wb);
+                if (parent) 
+                    parent->request(wb);
             }
 
             if (get_caching_device_block(block_idx, way).tag != TAG_INVALID)
