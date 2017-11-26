@@ -4010,9 +4010,9 @@ os_create_dir(const char *fname, create_directory_flags_t create_dir_flags)
 {
     bool require_new = TEST(CREATE_DIR_REQUIRE_NEW, create_dir_flags);
 #ifdef SYS_mkdir
-    int rc = dynamorio_syscall(SYS_mkdir, 2, fname, S_IRWXU|S_IRWXG);
+    int rc = dynamorio_syscall(SYS_mkdir, 2, fname, S_IRWXU|S_IRWXG|S_IRWXO);
 #else
-    int rc = dynamorio_syscall(SYS_mkdirat, 3, AT_FDCWD, fname, S_IRWXU|S_IRWXG);
+    int rc = dynamorio_syscall(SYS_mkdirat, 3, AT_FDCWD, fname, S_IRWXU|S_IRWXG|S_IRWXO);
 #endif
     ASSERT(create_dir_flags == CREATE_DIR_REQUIRE_NEW ||
            create_dir_flags == CREATE_DIR_ALLOW_EXISTING);
