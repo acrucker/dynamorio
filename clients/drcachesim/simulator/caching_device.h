@@ -58,6 +58,7 @@ class caching_device_t
                       caching_device_t *parent, caching_device_stats_t *stats,
                       prefetcher_t *prefetcher = nullptr);
     virtual ~caching_device_t();
+    virtual void request(const ext_memref_t &memref);
     virtual void request(const memref_t &memref);
 
     caching_device_stats_t *get_stats() const { return stats; }

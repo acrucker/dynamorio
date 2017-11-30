@@ -48,7 +48,10 @@
 #define REUSE_TIME                              "reuse_time"
 
 #include <string>
+
+#ifndef _EXTERNAL_
 #include "droption.h"
+#endif
 
 extern droption_t<bool>         op_offline;
 extern droption_t<std::string>  op_ipc_name;

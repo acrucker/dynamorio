@@ -44,7 +44,7 @@ void
 cache_stats_t::access(const memref_t &memref, bool hit)
 {
     // handle prefetching requests
-    if (type_is_prefetch(memref.data.type)) {
+    /*if (type_is_prefetch(memref.data.type)) {
         if (hit)
             num_prefetch_hits++;
         else {
@@ -52,9 +52,9 @@ cache_stats_t::access(const memref_t &memref, bool hit)
             if (dump_misses)
                 dump_miss(memref);
         }
-    } else { // handle regular memory accesses
+    } else { // handle regular memory accesses*/
         caching_device_stats_t::access(memref, hit);
-    }
+    //}
 }
 
 void

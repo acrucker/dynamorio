@@ -96,4 +96,12 @@ typedef union _memref_t {
     struct _memref_thread_exit_t exit;
 } memref_t;
 
+typedef struct _ext_memref_t {
+    memref_t ref;
+    int rdcount;
+    int wrcount;
+    int core;
+    bool inst;
+} ext_memref_t;
+
 #endif /* _MEMREF_H_ */

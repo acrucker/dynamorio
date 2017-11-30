@@ -63,6 +63,14 @@ cache_t::request(const memref_t &memref_in)
 }
 
 void
+cache_t::request(const ext_memref_t &memref_in)
+{
+    // Handle extended memref requests
+    caching_device_t::request(memref_in);
+}
+
+
+void
 cache_t::flush(const memref_t &memref)
 {
     addr_t tag = compute_tag(memref.flush.addr);

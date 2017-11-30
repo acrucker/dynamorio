@@ -85,11 +85,18 @@ caching_device_t::init(int associativity_, int block_size_, int num_blocks_,
     stats = stats_;
     prefetcher = prefetcher_;
 
+    std::cout << "Creating a cache with " << block_size_*num_blocks_ << " total bytes.\n";
     blocks = new caching_device_block_t* [num_blocks];
     init_blocks();
 
     last_tag = TAG_INVALID; // sentinel
     return true;
+}
+
+void
+caching_device_t::request(const ext_memref_t &memref_in)
+{
+    request(memref_in.ref);
 }
 
 void
@@ -105,13 +112,15 @@ caching_device_t::request(const memref_t &memref_in)
     addr_t final_tag = compute_tag(final_addr);
     addr_t tag = compute_tag(memref_in.data.addr);
 
+    assert(!(isicache && type_is_write(memref_in.data.type)));
+
     // Optimization: check last tag if single-block
     if (tag == final_tag && tag == last_tag) {
         // Make sure last_tag is properly in sync.
         assert(tag != TAG_INVALID &&
                tag == get_caching_device_block(last_block_idx, last_way).tag);
         stats->access(memref_in, true/*hit*/);
-        if (type_is_write(memref.data.type)) {
+        if (type_is_write(memref_in.data.type)) {
             write_update(last_block_idx, last_way);
             get_caching_device_block(last_block_idx, last_way).dirty = true;
             get_caching_device_block(last_block_idx, last_way).wrcount++;
@@ -129,6 +138,8 @@ caching_device_t::request(const memref_t &memref_in)
         int way;
         int block_idx = compute_block_idx(tag);
         bool missed = false;
+
+        assert(!(isicache && type_is_write(memref.data.type)));
 
         if (tag + 1 <= final_tag)
             memref.data.size = ((tag + 1) << block_size_bits) - memref.data.addr;
@@ -167,7 +178,7 @@ caching_device_t::request(const memref_t &memref_in)
                 wb.data.type = TRACE_TYPE_WRITE;
                 wb.data.pid = memref.data.pid;
                 wb.data.tid = memref.data.tid;
-                wb.data.addr = b.tag*(block_size*num_blocks/associativity);
+                wb.data.addr = b.tag << block_size_bits;
                 wb.data.size = block_size;
                 wb.data.pc = 0;
                 if (parent) 
@@ -180,7 +191,7 @@ caching_device_t::request(const memref_t &memref_in)
             }
             if (b.tag != TAG_INVALID) {
                 if (logger) {
-                    uintptr_t addr = b.tag*(block_size*num_blocks/associativity);
+                    uintptr_t addr = b.tag << block_size_bits;
                     if (isicache) {
                         logger->log_icache_evict(core, addr, b.rdcount, b.wrcount);
                     } else {
@@ -190,10 +201,11 @@ caching_device_t::request(const memref_t &memref_in)
                 stats->evict(!b.dirty);
             }
             if (logger) {
+                uintptr_t addr = tag << block_size_bits;
                 if (isicache) {
-                    logger->log_icache_miss(core, final_addr);
+                    logger->log_icache_miss(core, addr);
                 } else {
-                    logger->log_dcache_miss(core, final_addr, type_is_write(memref.data.type));
+                    logger->log_dcache_miss(core, addr, type_is_write(memref.data.type));
                 }
             }
             b.tag = tag;
