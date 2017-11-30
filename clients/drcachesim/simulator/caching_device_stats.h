@@ -63,7 +63,7 @@ class caching_device_stats_t
     virtual void child_access(const memref_t &memref, bool hit);
 
     // Count instructions for MPKI
-    virtual void reg_inst();
+    virtual void reg_inst(int cnt = 1);
 
     virtual void print_stats(std::string prefix);
 

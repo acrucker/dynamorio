@@ -174,9 +174,9 @@ caching_device_stats_t::print_stats(std::string prefix)
 }
 
 void
-caching_device_stats_t::reg_inst()
+caching_device_stats_t::reg_inst(int cnt)
 {
-    num_instructions++;
+    num_instructions+=cnt;
 }
 
 void

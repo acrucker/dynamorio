@@ -46,7 +46,9 @@
 #include "cache_lru.h"
 #include "cache_fifo.h"
 #include "cache_simulator.h"
+#ifndef _EXTERNAL_
 #include "droption.h"
+#endif
 
 // XXX i#2006: making this a library means that these options or knobs are
 // duplicated in multiple places as we pass them through the various layers.
