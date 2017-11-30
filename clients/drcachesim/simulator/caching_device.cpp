@@ -111,6 +111,13 @@ caching_device_t::request(const memref_t &memref_in)
         assert(tag != TAG_INVALID &&
                tag == get_caching_device_block(last_block_idx, last_way).tag);
         stats->access(memref_in, true/*hit*/);
+        if (type_is_write(memref.data.type)) {
+            write_update(last_block_idx, last_way);
+            get_caching_device_block(last_block_idx, last_way).dirty = true;
+            get_caching_device_block(last_block_idx, last_way).wrcount++;
+        } else {
+            get_caching_device_block(last_block_idx, last_way).rdcount++;
+        }
         if (parent != NULL)
             parent->stats->child_access(memref_in, true);
         access_update(last_block_idx, last_way);
