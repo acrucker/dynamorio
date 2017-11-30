@@ -39,6 +39,7 @@
 #include "caching_device.h"
 #include "cache_line.h"
 #include "cache_stats.h"
+#include "l1logger.h"
 
 class cache_t : public caching_device_t
 {
