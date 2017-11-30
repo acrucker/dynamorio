@@ -280,6 +280,7 @@ cache_simulator_t::process_memref(const memref_t &memref)
 
     if (type_is_instr(memref.instr.type)) {
         icaches[core]->get_stats()->reg_inst();
+        icaches[core]->reg_inst();
         dcaches[core]->get_stats()->reg_inst();
         l2caches[core]->get_stats()->reg_inst();
         l3cache->get_stats()->reg_inst();

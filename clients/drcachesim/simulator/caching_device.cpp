@@ -77,6 +77,7 @@ caching_device_t::init(int associativity_, int block_size_, int num_blocks_,
     blocks_per_set = num_blocks / associativity;
     assoc_bits = compute_log2(associativity);
     block_size_bits = compute_log2(block_size);
+    recent_instructions = 0;
     blocks_per_set_mask = blocks_per_set - 1;
     if (assoc_bits == -1 || block_size_bits == -1 || !IS_POWER_OF_2(blocks_per_set))
         return false;
@@ -142,13 +143,6 @@ caching_device_t::request(const memref_t &memref_in)
         }
 
         if (way == associativity) {
-            if (logger) {
-                if (isicache) {
-                    logger->log_icache_miss(core, final_addr);
-                } else {
-                    logger->log_dcache_miss(core, final_addr, type_is_write(memref.data.type));
-                }
-            }
             stats->access(memref, false/*miss*/);
             missed = true;
             // If no parent we assume we get the data from main memory
@@ -173,16 +167,27 @@ caching_device_t::request(const memref_t &memref_in)
                     parent->request(wb);
             }
 
+            if (logger && isicache) {
+                logger->log_instr_bundle(core, recent_instructions);
+                recent_instructions = 0;
+            }
             if (b.tag != TAG_INVALID) {
                 if (logger) {
                     uintptr_t addr = b.tag*(block_size*num_blocks/associativity);
                     if (isicache) {
-                        logger->log_icache_evict(core, addr, b.rdcount);
+                        logger->log_icache_evict(core, addr, b.rdcount, b.wrcount);
                     } else {
                         logger->log_dcache_evict(core, addr, b.rdcount, b.wrcount);
                     }
                 }
                 stats->evict(!b.dirty);
+            }
+            if (logger) {
+                if (isicache) {
+                    logger->log_icache_miss(core, final_addr);
+                } else {
+                    logger->log_dcache_miss(core, final_addr, type_is_write(memref.data.type));
+                }
             }
             b.tag = tag;
             b.dirty = false;

@@ -62,6 +62,7 @@ class caching_device_t
 
     caching_device_stats_t *get_stats() const { return stats; }
     void set_stats(caching_device_stats_t *stats_) { stats = stats_; }
+    void reg_inst() { recent_instructions++; }
     void set_miss_logger(bool isicache_, int core_, l1logger *logger_) { 
         core = core_;
         isicache = isicache_;
@@ -96,6 +97,7 @@ class caching_device_t
     // correctly by base class pointers.
     caching_device_block_t **blocks;
     int blocks_per_set;
+    int recent_instructions;
     // Optimization fields for fast bit operations
     int blocks_per_set_mask;
     int assoc_bits;
