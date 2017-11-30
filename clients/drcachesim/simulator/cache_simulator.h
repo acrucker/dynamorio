@@ -57,6 +57,7 @@ class cache_simulator_t : public simulator_t
                       uint64_t          L4_size,
                       unsigned int      L4_assoc,
                       const std::string &LL_miss_file,
+                      const std::string &L1_trace_file,
                       const std::string &replace_policy,
                       const std::string &data_prefetcher,
                       uint64_t          skip_refs,
@@ -91,6 +92,7 @@ class cache_simulator_t : public simulator_t
 
     // Implement a set of ICaches and DCaches with pointer arrays.
     // This is useful for implementing polymorphism correctly.
+    l1logger l1miss_logger;
     cache_t **icaches;
     cache_t **dcaches;
 

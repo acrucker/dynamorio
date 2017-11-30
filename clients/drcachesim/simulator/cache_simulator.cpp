@@ -69,6 +69,7 @@ cache_simulator_create(unsigned int      num_cores,
                        uint64_t          L4_size,
                        unsigned int      L4_assoc,
                        const std::string &LL_miss_file,
+                       const std::string &L1_trace_file,
                        const std::string &replace_policy,
                        const std::string &data_prefetcher,
                        uint64_t          skip_refs,
@@ -79,8 +80,9 @@ cache_simulator_create(unsigned int      num_cores,
     return new cache_simulator_t(num_cores, line_size, L1I_size, L1D_size,
                                  L1I_assoc, L1D_assoc, L2_size, L2_assoc,
                                  L3_size, L3_assoc, L4_size, L4_assoc,
-                                 LL_miss_file, replace_policy, data_prefetcher,
-                                 skip_refs,warmup_refs, sim_refs, verbose);
+                                 LL_miss_file, L1_trace_file, replace_policy, 
+                                 data_prefetcher, skip_refs,warmup_refs, 
+                                 sim_refs, verbose);
 }
 
 cache_simulator_t::cache_simulator_t(unsigned int      num_cores,
@@ -96,6 +98,7 @@ cache_simulator_t::cache_simulator_t(unsigned int      num_cores,
                                      uint64_t          L4_size,
                                      unsigned int      L4_assoc,
                                      const std::string &LL_miss_file,
+                                     const std::string &L1_trace_file,
                                      const std::string &replace_policy,
                                      const std::string &data_prefetcher,
                                      uint64_t          skip_refs,
@@ -117,6 +120,7 @@ cache_simulator_t::cache_simulator_t(unsigned int      num_cores,
     knob_LL_miss_file(LL_miss_file),
     knob_replace_policy(replace_policy),
     knob_data_prefetcher(data_prefetcher),
+    l1miss_logger(L1_trace_file),
     icaches(NULL),
     dcaches(NULL)
 {
@@ -200,6 +204,8 @@ cache_simulator_t::cache_simulator_t(unsigned int      num_cores,
             success = false;
             return;
         }
+        icaches[i]->set_miss_logger(true, i, &l1miss_logger);
+        dcaches[i]->set_miss_logger(false, i, &l1miss_logger);
     }
 
     thread_counts = new unsigned int[knob_num_cores];

@@ -36,12 +36,13 @@
 #include "prefetcher.h"
 #include "../common/utils.h"
 #include "../common/trace_entry.h"
+#include "l1logger.h"
 #include <assert.h>
 #include <iostream>
 #include <iomanip>
 
 caching_device_t::caching_device_t() :
-    blocks(NULL), stats(NULL), prefetcher(NULL)
+    blocks(NULL), stats(NULL), logger(NULL), prefetcher(NULL)
 {
     /* Empty. */
 }
@@ -129,6 +130,9 @@ caching_device_t::request(const memref_t &memref_in)
                 if (type_is_write(memref.data.type)) {
                     write_update(block_idx, way);
                     get_caching_device_block(block_idx, way).dirty = true;
+                    get_caching_device_block(block_idx, way).wrcount++;
+                } else {
+                    get_caching_device_block(block_idx, way).rdcount++;
                 }
                 stats->access(memref, true/*hit*/);
                 if (parent != NULL)
@@ -138,6 +142,13 @@ caching_device_t::request(const memref_t &memref_in)
         }
 
         if (way == associativity) {
+            if (logger) {
+                if (isicache) {
+                    logger->log_icache_miss(core, final_addr);
+                } else {
+                    logger->log_dcache_miss(core, final_addr, type_is_write(memref.data.type));
+                }
+            }
             stats->access(memref, false/*miss*/);
             missed = true;
             // If no parent we assume we get the data from main memory
@@ -146,27 +157,36 @@ caching_device_t::request(const memref_t &memref_in)
                 parent->request(memref);
             }
 
-
             // FIXME i#1726: coherence policy
 
             way = replace_which_way(block_idx);
-            //caching_device_block_t &b = get_caching_device_block(block_idx, way);
-            if (get_caching_device_block(block_idx, way).dirty) {
+            caching_device_block_t &b = get_caching_device_block(block_idx, way);
+            if (b.dirty) {
                 memref_t wb;
                 wb.data.type = TRACE_TYPE_WRITE;
                 wb.data.pid = memref.data.pid;
                 wb.data.tid = memref.data.tid;
-                wb.data.addr = get_caching_device_block(block_idx, way).tag*(block_size*num_blocks/associativity);
+                wb.data.addr = b.tag*(block_size*num_blocks/associativity);
                 wb.data.size = block_size;
                 wb.data.pc = 0;
                 if (parent) 
                     parent->request(wb);
             }
 
-            if (get_caching_device_block(block_idx, way).tag != TAG_INVALID)
-                stats->evict(!get_caching_device_block(block_idx, way).dirty);
-            get_caching_device_block(block_idx, way).tag = tag;
-            get_caching_device_block(block_idx, way).dirty = false;
+            if (b.tag != TAG_INVALID) {
+                if (logger) {
+                    uintptr_t addr = b.tag*(block_size*num_blocks/associativity);
+                    if (isicache) {
+                        logger->log_icache_evict(core, addr, b.rdcount);
+                    } else {
+                        logger->log_dcache_evict(core, addr, b.rdcount, b.wrcount);
+                    }
+                }
+                stats->evict(!b.dirty);
+            }
+            b.tag = tag;
+            b.dirty = false;
+            b.rdcount = b.wrcount = 0;
             write_update(block_idx, way);
         }
 

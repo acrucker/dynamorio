@@ -61,6 +61,7 @@ drmemtrace_analysis_tool_create()
                                       op_L4_size.get_value(),
                                       op_L4_assoc.get_value(),
                                       op_LL_miss_file.get_value(),
+                                      op_L1_trace_file.get_value(),
                                       op_replace_policy.get_value(),
                                       op_data_prefetcher.get_value(),
                                       op_skip_refs.get_value(),

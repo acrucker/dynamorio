@@ -40,6 +40,7 @@
 #include "caching_device_stats.h"
 #include "memref.h"
 #include "prefetcher.h"
+#include "l1logger.h"
 
 // Statistics collection is abstracted out into the caching_device_stats_t class.
 
@@ -61,6 +62,11 @@ class caching_device_t
 
     caching_device_stats_t *get_stats() const { return stats; }
     void set_stats(caching_device_stats_t *stats_) { stats = stats_; }
+    void set_miss_logger(bool isicache_, int core_, l1logger *logger_) { 
+        core = core_;
+        isicache = isicache_;
+        logger = logger_; 
+    }
     prefetcher_t *get_prefetcher() const { return prefetcher; }
     caching_device_t *get_parent() const { return parent; }
 
@@ -96,6 +102,9 @@ class caching_device_t
     int block_size_bits;
 
     caching_device_stats_t *stats;
+    l1logger *logger;
+    bool isicache;
+    int core;
     prefetcher_t *prefetcher;
 
     // Optimization: remember last tag

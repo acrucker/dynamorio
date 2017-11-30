@@ -131,6 +131,11 @@ droption_t<std::string> op_LL_miss_file
  "in text format as a <program counter, address> pair.  If this tool is linked "
  "with zlib, the file is written in gzip-compressed format.");
 
+droption_t<std::string> op_L1_trace_file
+(DROPTION_SCOPE_FRONTEND, "L1_trace_file", "",
+ "Path for writing the L1 miss/evict trace", "If non-empty, requests that "
+ "every L1 miss and evict is traced to a file, in order.");
+
 droption_t<bool> op_L0_filter
 (DROPTION_SCOPE_CLIENT, "L0_filter", false,
  "Filter out zero-level hits during tracing",
