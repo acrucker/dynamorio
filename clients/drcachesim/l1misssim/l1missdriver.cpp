@@ -216,7 +216,7 @@ int main(int argc, char **argv) {
         //assert(l2caches[i]->set_inclusion(L2_inclusion_policy));
     }
 
-    for(std::string str; std::getline(trace_file, str); ) {
+    for(std::string str; std::getline(trace_buf, str); ) {
         std::stringstream rem(str);
         int _c, _i, _rdcnt, _wrcnt;
         uint64_t _a;
@@ -239,7 +239,7 @@ int main(int argc, char **argv) {
             l3cache->get_stats()->reg_inst(_i);
             l4cache->get_stats()->reg_inst(_i);
             total_insts += _i;
-            printf("Registered %d insts at core %d.\n", _i, _c);
+            //printf("Registered %d insts at core %d.\n", _i, _c);
         } else if (!strncmp(str.c_str(), "IM", 2)) {
             rem >> _c >> _a;
             memref.ref.data.type = TRACE_TYPE_READ;
@@ -247,7 +247,7 @@ int main(int argc, char **argv) {
             memref.inst = true;
             memref.ref.data.size = 1;
             memref.ref.data.addr = _a;
-            printf("Handling i-miss to  %16lX at core %d.\n", _a, _c);
+            //printf("Handling i-miss to  %16lX at core %d.\n", _a, _c);
             imisscnt++;
             l2caches[_c]->request(memref);
         } else if (!strncmp(str.c_str(), "IE", 2)) {
@@ -262,7 +262,7 @@ int main(int argc, char **argv) {
             memref.ref.data.size = 1;
             memref.ref.data.addr = _a;
             if (_wrcnt > 0) {
-                printf("Handling d-evict to %16lX at core %d.\n", _a, _c);
+                //printf("Handling d-evict to %16lX at core %d.\n", _a, _c);
                 l2caches[_c]->request(memref);
             }
         } else if (!strncmp(str.c_str(), "DW", 2)) {
@@ -273,7 +273,7 @@ int main(int argc, char **argv) {
             memref.ref.data.size = 1;
             memref.ref.data.addr = _a;
             dmisscnt++;
-            printf("Handling d-write to %16lX at core %d.\n", _a, _c);
+            //printf("Handling d-write to %16lX at core %d.\n", _a, _c);
             l2caches[_c]->request(memref);
         } else if (!strncmp(str.c_str(), "DR", 2)) {
             rem >> _c >> _a;
@@ -283,7 +283,7 @@ int main(int argc, char **argv) {
             memref.ref.data.size = 1;
             memref.ref.data.addr = _a;
             dmisscnt++;
-            printf("Handling d-read to  %16lX at core %d.\n", _a, _c);
+            //printf("Handling d-read to  %16lX at core %d.\n", _a, _c);
             l2caches[_c]->request(memref);
         } else {
             printf("Unknown trace line: %s\n", str.c_str());
