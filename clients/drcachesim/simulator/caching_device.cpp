@@ -96,7 +96,8 @@ caching_device_t::init(int associativity_, int block_size_, int num_blocks_,
 void
 caching_device_t::request(const ext_memref_t &memref_in)
 {
-    request(memref_in.ref);
+    
+    caching_device_t::request(memref_in.ref);
 }
 
 void
