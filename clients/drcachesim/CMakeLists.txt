@@ -101,7 +101,7 @@ add_executable(drcachesim
 # In order to embed raw2trace we need to be standalone:
 configure_DynamoRIO_standalone(drcachesim)
 # Link in our tools:
-target_link_libraries(drcachesim simulator reuse_distance histogram reuse_time raw2trace)
+target_link_libraries(drcachesim simulator reuse_distance histogram reuse_time raw2trace bz2 boost_iostreams)
 # To avoid dup symbol errors between drinjectlib and the drdecode brought in
 # by drfrontendlib we have to explicitly list drdecode up front:
 target_link_libraries(drcachesim drdecode drinjectlib drconfiglib drfrontendlib)

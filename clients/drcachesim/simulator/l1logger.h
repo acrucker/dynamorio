@@ -4,10 +4,14 @@
 #include <string>
 #include <iostream>
 #include <fstream>
+#include <boost/iostreams/filtering_stream.hpp>
+#include <boost/iostreams/copy.hpp>
+#include <boost/iostreams/filter/bzip2.hpp>
 
 class l1logger {
     bool active;
-    std::ofstream output;
+    std::ofstream out_stream;
+    boost::iostreams::filtering_ostream output;
 public:
     l1logger(const std::string &out_file) {
         if (out_file.empty()) {
@@ -15,11 +19,17 @@ public:
             return;
         }
         active = true;
-        output.open(out_file);
+        out_stream.open(out_file);
+
+        if (strstr(out_file.c_str(), "bz2")) {
+            printf("Using bz2 compression.\n");
+            output.push(boost::iostreams::bzip2_compressor());
+        } 
+        output.push(out_stream);
     }
 
     ~l1logger() {
-        output.close();
+        //output.close();
     }
 
     void log_instr_bundle(int core, int count) {
