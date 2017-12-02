@@ -198,12 +198,12 @@ int main(int argc, char **argv) {
     if (!l4cache->init(L4_assoc, line_size, 
                 L4_size, NULL, new cache_stats_t)) assert(false);
 
-    assert(l4cache->set_inclusion(L4_inclusion_policy));
+    //assert(l4cache->set_inclusion(L4_inclusion_policy));
 
     if (!l3cache->init(L3_assoc, line_size,
                        L3_size, l4cache, new cache_stats_t)) assert(false);
 
-    assert(l3cache->set_inclusion(L3_inclusion_policy));
+    //assert(l3cache->set_inclusion(L3_inclusion_policy));
 
     l2caches = new cache_t* [cores];
     for (int i = 0; i < cores; i++) {
@@ -213,7 +213,7 @@ int main(int argc, char **argv) {
         if (!l2caches[i]->init(L2_assoc, line_size, L2_size, 
                     l3cache, new cache_stats_t)) assert(false);
 
-        assert(l2caches[i]->set_inclusion(L2_inclusion_policy));
+        //assert(l2caches[i]->set_inclusion(L2_inclusion_policy));
     }
 
     for(std::string str; std::getline(trace_file, str); ) {
