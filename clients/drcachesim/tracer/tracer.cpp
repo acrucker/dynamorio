@@ -89,7 +89,7 @@ static file_t module_file;
 #define MAX_NUM_ENTRIES 4096
 
 /* Directory holding traces for CS349D project */
-#define CS349D_TRACE_DIR ("/home/cs349d/trace/")
+#define CS349D_TRACE_DIR ("/home/ubuntu/trace/")
 
 /* The buffer size for holding trace entries. */
 static size_t trace_buf_size;
