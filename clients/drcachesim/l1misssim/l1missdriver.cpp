@@ -76,6 +76,7 @@ int main(int argc, char **argv) {
     uint64_t sim_insts;
     uint64_t total_insts;
     uint64_t imisscnt, dmisscnt;
+    uint64_t lines;
 
     cache_t **l2caches;
 
@@ -112,6 +113,8 @@ int main(int argc, char **argv) {
     sim_insts = -1;
 
     imisscnt = dmisscnt = 0;
+
+    lines = 0;
 
     while (!getopt_long_only(argc, argv, "", long_opts, &optidx)) {
         if (!strcmp("L2_size", long_opts[optidx].name))
@@ -289,6 +292,9 @@ int main(int argc, char **argv) {
             printf("Unknown trace line: %s\n", str.c_str());
             assert(false);
         }
+        lines++;
+        if (lines%50000 == 0)
+            printf("Handled %llu lines.\n", lines);
     }
 
     printf("Done reading trace file. %d instructions simulated.\n", total_insts);
