@@ -134,6 +134,9 @@ typedef enum {
 
     // Hardware-issued prefetch.
     TRACE_TYPE_HARDWARE_PREFETCH,
+
+    // Eviction from subordinate cache
+    TRACE_TYPE_EVICT,
 } trace_type_t;
 
 extern const char * const trace_type_names[];
