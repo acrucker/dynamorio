@@ -102,6 +102,7 @@ typedef struct _ext_memref_t {
     int wrcount;
     int core;
     bool inst;
+    bool evict;
 } ext_memref_t;
 
 #endif /* _MEMREF_H_ */

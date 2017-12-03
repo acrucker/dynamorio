@@ -109,8 +109,10 @@ caching_device_t::request(const memref_t &memref_in)
     }
     gen_memref.ref     = memref_in;
     gen_memref.inst    = false;
+    gen_memref.evict   = false;
     
     caching_device_t::request(gen_memref);
+    assert(false);
 }
 
 bool
@@ -124,6 +126,12 @@ caching_device_t::set_inclusion_opts(bool _alloc_on_evict,
         inclusion = new include_all();
     } else if (!strcmp(include_policy.c_str(), "none")) {
         inclusion = new include_none();
+    } else if (!strncmp(include_policy.c_str(), "write_", 6)) {
+        int wrcount = atoi(include_policy.c_str()+6);
+        inclusion = new include_write_threshold(wrcount);
+    } else if (!strncmp(include_policy.c_str(), "rand_", 5)) {
+        int randpct = atoi(include_policy.c_str()+5);
+        inclusion = new include_random(randpct);
     } else {
         return false;
     }
@@ -137,19 +145,21 @@ caching_device_t::set_inclusion_opts(bool _alloc_on_evict,
 void
 caching_device_t::evict(int block_idx, int way) {
     caching_device_block_t &b = get_caching_device_block(block_idx, way);
-    if (b.dirty) {
-        memref_t wb;
-        wb.data.type = TRACE_TYPE_WRITE;
-        wb.data.pid = 0;
-        wb.data.tid = 0;
-        wb.data.addr = b.tag << block_size_bits;
-        wb.data.size = block_size;
-        wb.data.pc = 0;
-        if (parent) 
-            parent->request(wb);
-    }
-    inclusion->update_evict(b.tag<<block_size_bits, b.rdcount, b.wrcount);
+    ext_memref_t wb;
+    wb.ref.data.type = TRACE_TYPE_EVICT;
+    wb.ref.data.pid = 0;
+    wb.ref.data.tid = 0;
+    wb.ref.data.addr = b.tag << block_size_bits;
+    wb.ref.data.size = block_size;
+    wb.ref.data.pc = 0;
+    wb.rdcount = b.rdcount;
+    wb.wrcount = b.wrcount;
+    wb.inst = b.everinst;
+    wb.evict = true;
+    if (parent) 
+        parent->request(wb);
     if (b.tag != TAG_INVALID) {
+        inclusion->update_evict(b.tag<<block_size_bits, b.rdcount, b.wrcount);
         if (logger) {
             uintptr_t addr = b.tag << block_size_bits;
             if (isicache) {
@@ -160,6 +170,11 @@ caching_device_t::evict(int block_idx, int way) {
         }
         stats->evict(!b.dirty);
     }
+    b.tag = TAG_INVALID;
+    b.wrcount = 0;
+    b.rdcount = 0;
+    b.everinst = false;
+    b.dirty = false;
 }
 
 void
@@ -167,15 +182,19 @@ caching_device_t::request(const ext_memref_t &ext_memref_in)
 {
     // Unfortunately we need to make a copy for our loop so we can pass
     // the right data struct to the parent and stats collectors.
-    memref_t memref;
+    ext_memref_t ext_memref;
     const memref_t &memref_in = ext_memref_in.ref;
 
-    bool is_evict = ext_memref_in.rdcount + ext_memref_in.wrcount > 0;
+    bool is_evict = ext_memref_in.evict;
 
     // Update counters with subordinate stats
+    
+    // Disregard totally unused subordinate evictions
+    if (is_evict && !ext_memref_in.rdcount && !ext_memref_in.wrcount)
+        return;
 
     // If allocation is being done on misses and this is a clean evict, disregard
-    if (!alloc_on_evict && ext_memref_in.wrcount == 0)
+    if (!alloc_on_evict && is_evict && ext_memref_in.wrcount == 0)
         return;
 
     // We support larger sizes to improve the IPC perf.
@@ -187,12 +206,13 @@ caching_device_t::request(const ext_memref_t &ext_memref_in)
 
     assert(!(isicache && type_is_write(memref_in.data.type)));
 
-    // Optimization: check last tag if single-block and read
+    // Optimization: check last tag if single-block and read and miss
     if (tag == final_tag && tag == last_tag && !is_evict && !type_is_write(memref_in.data.type)) {
         // Make sure last_tag is properly in sync.
         assert(tag != TAG_INVALID &&
                tag == get_caching_device_block(last_block_idx, last_way).tag);
         stats->access(memref_in, true/*hit*/);
+        get_caching_device_block(last_block_idx, last_way).everinst |= ext_memref_in.inst;
         get_caching_device_block(last_block_idx, last_way).rdcount++;
         if (parent != NULL)
             parent->stats->child_access(memref_in, true);
@@ -203,51 +223,55 @@ caching_device_t::request(const ext_memref_t &ext_memref_in)
     // Invalidate last tag when handling writes
     last_tag = TAG_INVALID;
 
-    memref = memref_in;
+    ext_memref = ext_memref_in;
     for (; tag <= final_tag; ++tag) {
         int way;
         int block_idx = compute_block_idx(tag);
         bool missed = false;
 
-        assert(!(isicache && type_is_write(memref.data.type)));
+        assert(!(isicache && type_is_write(ext_memref.ref.data.type)));
 
         if (tag + 1 <= final_tag)
-            memref.data.size = ((tag + 1) << block_size_bits) - memref.data.addr;
+            ext_memref.ref.data.size = ((tag + 1) << block_size_bits) - ext_memref.ref.data.addr;
 
         for (way = 0; way < associativity; ++way) {
             if (get_caching_device_block(block_idx, way).tag == tag) {
-                if (type_is_write(memref.data.type)) {
+                access_update(block_idx, way);
+                if (type_is_write(ext_memref.ref.data.type)) {
                     write_update(block_idx, way);
                     get_caching_device_block(block_idx, way).dirty = true;
                     get_caching_device_block(block_idx, way).wrcount++;
-                    if (evict_after_n_writes && 
-                        get_caching_device_block(block_idx, way).wrcount 
-                        > evict_after_n_writes) {
+                    if (evict_after_n_writes && get_caching_device_block(block_idx, way).wrcount > evict_after_n_writes) {
                         evict(block_idx, way);
                         break;
                     }
                 } else {
                     get_caching_device_block(block_idx, way).rdcount++;
+	        	    get_caching_device_block(block_idx, way).everinst |= ext_memref_in.inst;
                 }
-                stats->access(memref, true/*hit*/);
-                if (parent != NULL)
-                    parent->stats->child_access(memref, true);
+                if (!is_evict || ext_memref_in.wrcount) {
+    	            stats->access(ext_memref.ref, true/*hit*/);
+        		    if (parent != NULL)
+	                    parent->stats->child_access(ext_memref.ref, true);
+		        }
                 break;
             }
         }
 
         if (way == associativity) {
-            stats->access(memref, false/*miss*/);
-            missed = true;
-            // If no parent we assume we get the data from main memory
-            if (parent != NULL) {
-                parent->stats->child_access(memref, false);
-                parent->request(memref);
+            if (!is_evict || ext_memref_in.wrcount) {
+                stats->access(ext_memref.ref, false/*miss*/);
+                missed = true;
+                // If no parent we assume we get the data from main memory
+                if (parent != NULL) {
+                    parent->stats->child_access(ext_memref.ref, false);
+                    parent->request(ext_memref);
+                }
             }
 
             // Don't allocate on miss if we're allocating on evictions from below
-            if (alloc_on_evict && !is_evict)
-                continue;
+            //if (alloc_on_evict && !is_evict)
+                //continue;
 
             // If the insertion policy tells us not to allocate, don't
             if (alloc_on_evict && !inclusion->should_alloc(tag << block_size_bits,
@@ -269,27 +293,25 @@ caching_device_t::request(const ext_memref_t &ext_memref_in)
                 if (isicache) {
                     logger->log_icache_miss(core, addr);
                 } else {
-                    logger->log_dcache_miss(core, addr, type_is_write(memref.data.type));
+                    logger->log_dcache_miss(core, addr, type_is_write(ext_memref.ref.data.type));
                 }
             }
             caching_device_block_t &b = get_caching_device_block(block_idx, way);
+            b.everinst = ext_memref_in.inst;
             b.tag = tag;
-            b.dirty = false;
-            b.rdcount = b.wrcount = 0;
             write_update(block_idx, way);
+    	    access_update(block_idx, way);
         }
-
-        access_update(block_idx, way);
 
         // Issue a hardware prefetch, if any, before we remember the last tag,
         // so we remember this line and not the prefetched line.
-        if (missed && !type_is_prefetch(memref.data.type) && prefetcher != nullptr)
-            prefetcher->prefetch(this, memref);
+        if (missed && !type_is_prefetch(ext_memref.ref.data.type) && prefetcher != nullptr)
+            prefetcher->prefetch(this, ext_memref.ref);
 
         if (tag + 1 <= final_tag) {
             addr_t next_addr = (tag + 1) << block_size_bits;
-            memref.data.addr = next_addr;
-            memref.data.size = final_addr - next_addr + 1/*undo the -1*/;
+            ext_memref.ref.data.addr = next_addr;
+            ext_memref.ref.data.size = final_addr - next_addr + 1/*undo the -1*/;
         }
 
         // Optimization: remember last tag
@@ -320,7 +342,7 @@ caching_device_t::print_wearout(std::string prefix)
     std::cout << prefix << std::setw(18) << std::left << "Maximum wear:" <<
         std::setw(20) << std::right << max_wearout << std::endl;
     std::cout << prefix << std::setw(18) << std::left << "Mean wear:" <<
-        std::setw(20) << std::fixed << std::setprecision(2) << std::right <<
+        std::setw(20) << std::fixed << std::setprecision(4) << std::right <<
         ((float)total_wearout/num_blocks) << std::endl;
     std::cout << prefix << std::setw(18) << std::left << "Total updates:" <<
         std::setw(20) << std::right << total_wearout << std::endl;

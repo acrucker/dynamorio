@@ -82,11 +82,11 @@ int main(int argc, char **argv) {
     int L2_evict_after_write, L3_evict_after_write, L4_evict_after_write;
     cache_stats_t *l2stats;
     
-
     uint64_t warmup_insts;
     uint64_t sim_insts;
     uint64_t total_insts;
     uint64_t imisscnt, dmisscnt;
+    uint64_t ievictcnt, devictcnt;
     uint64_t lines;
 
     cache_t **l2caches;
@@ -128,6 +128,7 @@ int main(int argc, char **argv) {
     sim_insts = -1;
 
     imisscnt = dmisscnt = 0;
+    ievictcnt = devictcnt = 0;
 
     lines = 0;
 
@@ -272,7 +273,7 @@ int main(int argc, char **argv) {
 
         if (!strncmp(str.c_str(), "IB", 2)) {
             rem >> _c >> _i;
-            l2caches[_c]->get_stats()->reg_inst(_i);
+            l2caches[0]->get_stats()->reg_inst(_i);
             l3cache->get_stats()->reg_inst(_i);
             l4cache->get_stats()->reg_inst(_i);
             total_insts += _i;
@@ -284,24 +285,36 @@ int main(int argc, char **argv) {
             memref.inst = true;
             memref.ref.data.size = 1;
             memref.ref.data.addr = _a;
+            memref.evict = false;
             //printf("Handling i-miss to  %16lX at core %d.\n", _a, _c);
             imisscnt++;
-            l2caches[_c]->request(memref);
+            l2caches[0]->request(memref);
         } else if (!strncmp(str.c_str(), "IE", 2)) {
             rem >> _c >> _a >> _rdcnt >> _wrcnt;
+            memref.ref.data.type = TRACE_TYPE_EVICT;
+            memref.core = _c;
+            memref.inst = true;
+            memref.ref.data.size = 1;
+            memref.ref.data.addr = _a;
+            memref.evict = true;
+            ievictcnt++;
+            //printf("Handling i-evict to  %16lX at core %d.\n", _a, _c);
+            l2caches[0]->request(memref);
         } else if (!strncmp(str.c_str(), "DE", 2)) {
             rem >> _c >> _a >> _rdcnt >> _wrcnt;
-            memref.ref.data.type = TRACE_TYPE_WRITE;
+            memref.ref.data.type = TRACE_TYPE_EVICT;
             memref.core = _c;
             memref.inst = false;
             memref.rdcount = _rdcnt;
             memref.wrcount = _wrcnt;
             memref.ref.data.size = 1;
             memref.ref.data.addr = _a;
-            if (_wrcnt > 0) {
+            memref.evict = true;
+            devictcnt++;
+            //if (_wrcnt > 0) {
                 //printf("Handling d-evict to %16lX at core %d.\n", _a, _c);
-                l2caches[_c]->request(memref);
-            }
+                l2caches[0]->request(memref);
+           // }
         } else if (!strncmp(str.c_str(), "DW", 2)) {
             rem >> _c >> _a;
             memref.ref.data.type = TRACE_TYPE_WRITE;
@@ -310,8 +323,9 @@ int main(int argc, char **argv) {
             memref.ref.data.size = 1;
             memref.ref.data.addr = _a;
             dmisscnt++;
+            memref.evict = false;
             //printf("Handling d-write to %16lX at core %d.\n", _a, _c);
-            l2caches[_c]->request(memref);
+            l2caches[0]->request(memref);
         } else if (!strncmp(str.c_str(), "DR", 2)) {
             rem >> _c >> _a;
             memref.ref.data.type = TRACE_TYPE_READ;
@@ -320,8 +334,9 @@ int main(int argc, char **argv) {
             memref.ref.data.size = 1;
             memref.ref.data.addr = _a;
             dmisscnt++;
+            memref.evict = false;
             //printf("Handling d-read to  %16lX at core %d.\n", _a, _c);
-            l2caches[_c]->request(memref);
+            l2caches[0]->request(memref);
         } else {
             printf("Unknown trace line: %s\n", str.c_str());
             assert(false);
@@ -333,14 +348,15 @@ int main(int argc, char **argv) {
 
     printf("Done reading trace file. %lu instructions simulated.\n", total_insts);
     printf("\tTotal %lu imiss, %lu dmiss.\n", imisscnt, dmisscnt);
+    printf("\tTotal %lu ievict, %lu devict.\n", ievictcnt, devictcnt);
     std::cout << "Cache simulation results:\n";
-    for (int i = 0; i < cores; i++) {
-        std::cout << "Core #" << i << std::endl;
-        std::cout << "  L2 stats:" << std::endl;
-        l2caches[i]->get_stats()->print_stats("    ");
-        std::cout << "  L2 wearout stats:" << std::endl;
-        l2caches[i]->print_wearout("    ");
-    }
+    //for (int i = 0; i < cores; i++) {
+        //std::cout << "Core #" << i << std::endl;
+	std::cout << "Combined L2 stats:" << std::endl;
+	l2caches[0]->get_stats()->print_stats("    ");
+	std::cout << "L2 wearout stats:" << std::endl;
+	l2caches[0]->print_wearout("    ");
+    //}
     std::cout << "L3 stats:" << std::endl;
     l3cache->get_stats()->print_stats("    ");
     std::cout << "L3 wearout stats:" << std::endl;
