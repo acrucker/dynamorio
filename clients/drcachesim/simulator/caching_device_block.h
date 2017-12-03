@@ -52,14 +52,13 @@ class caching_device_block_t
     // replacement algorithms without errors (and we expect negligible perf cost), as
     // we expect any use of counter to only occur *after* a valid tag is put in place,
     // where for the current replacement code we also set the counter at that time.
-    caching_device_block_t() : tag(TAG_INVALID), dirty(false), everinst(false), rdcount(0), 
+    caching_device_block_t() : tag(TAG_INVALID), dirty(false), rdcount(0), 
     wrcount(0), counter(0), wearout_counter(0) {}
     // Destructor must be virtual and default is not.
     virtual ~caching_device_block_t() {}
 
     addr_t tag;
     bool dirty;
-    bool everinst;
     int rdcount;
     int wrcount;
 

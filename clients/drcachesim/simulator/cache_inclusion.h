@@ -1,8 +1,6 @@
 #ifndef _CACHE_INCLUSION_H
 #define _CACHE_INCLUSION_H
 
-#include <cstdlib>
-
 struct cache_inclusion_t {
     virtual void update_evict(int addr, int rdcount, int wrcount) = 0;
     virtual bool should_alloc(int addr, int rdcount, int wrcount, bool isinst) = 0;
@@ -16,20 +14,6 @@ struct include_all : public cache_inclusion_t {
 struct include_none : public cache_inclusion_t {
     void update_evict(int addr, int rdcount, int wrcount) {}
     bool should_alloc(int addr, int rdcount, int wrcount, bool isinst) {return false;}
-};
-
-struct include_write_threshold : public cache_inclusion_t {
-    int threshold;
-    include_write_threshold(int _threshold) : threshold(_threshold) {}
-    void update_evict(int addr, int rdcount, int wrcount) {}
-    bool should_alloc(int addr, int rdcount, int wrcount, bool isinst) {return wrcount <= threshold;}
-};
-
-struct include_random : public cache_inclusion_t {
-    int threshold;
-    include_random(int _threshold) : threshold(_threshold) {}
-    void update_evict(int addr, int rdcount, int wrcount) {}
-    bool should_alloc(int addr, int rdcount, int wrcount, bool isinst) {return std::rand() % 100 < threshold;}
 };
 
 #endif
