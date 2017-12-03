@@ -38,6 +38,7 @@
 
 #include "caching_device_block.h"
 #include "caching_device_stats.h"
+#include "cache_inclusion.h"
 #include "memref.h"
 #include "prefetcher.h"
 #include "l1logger.h"
@@ -63,6 +64,8 @@ class caching_device_t
 
     caching_device_stats_t *get_stats() const { return stats; }
     void set_stats(caching_device_stats_t *stats_) { stats = stats_; }
+    bool set_inclusion_opts(bool _alloc_on_evict, int _evict_after_n_writes,
+            std::string include_policy);
     void reg_inst() { recent_instructions++; }
     void set_miss_logger(bool isicache_, int core_, l1logger *logger_) { 
         core = core_;
@@ -75,6 +78,10 @@ class caching_device_t
     virtual void print_wearout(std::string prefix);
 
  protected:
+    cache_inclusion_t *inclusion;
+    bool alloc_on_evict;
+    int evict_after_n_writes;
+    void evict(int block_idx, int way);
     virtual void access_update(int block_idx, int way);
     virtual void write_update(int block_idx, int way);
     virtual int replace_which_way(int block_idx);
