@@ -111,18 +111,18 @@ caching_device_stats_t::dump_miss(const memref_t &memref)
 void
 caching_device_stats_t::print_counts(std::string prefix)
 {
-    std::cerr << prefix << std::setw(18) << std::left << "Instructions:" <<
+    std::cout << prefix << std::setw(18) << std::left << "Instructions:" <<
         std::setw(20) << std::right << num_instructions << std::endl;
-    std::cerr << prefix << std::setw(18) << std::left << "Hits:" <<
+    std::cout << prefix << std::setw(18) << std::left << "Hits:" <<
         std::setw(20) << std::right << num_hits << std::endl;
-    std::cerr << prefix << std::setw(18) << std::left << "Misses:" <<
+    std::cout << prefix << std::setw(18) << std::left << "Misses:" <<
         std::setw(20) << std::right << num_misses << std::endl;
-    std::cerr << prefix << std::setw(18) << std::left << "MPKI:" <<
+    std::cout << prefix << std::setw(18) << std::left << "MPKI:" <<
         std::setw(20) << std::fixed << std::setprecision(2) << std::right <<
         ((float)num_misses*1000/(num_instructions)) << std::endl;
-    std::cerr << prefix << std::setw(18) << std::left << "Clean evicts:" <<
+    std::cout << prefix << std::setw(18) << std::left << "Clean evicts:" <<
         std::setw(20) << std::right << clean_evicts << std::endl;
-    std::cerr << prefix << std::setw(18) << std::left << "Dirty evicts:" <<
+    std::cout << prefix << std::setw(18) << std::left << "Dirty evicts:" <<
         std::setw(20) << std::right << dirty_evicts << std::endl;
 }
 
@@ -143,7 +143,7 @@ caching_device_stats_t::print_rates(std::string prefix)
         std::string miss_label = "Miss rate:";
         if (num_child_hits != 0)
             miss_label = "Local miss rate:";
-        std::cerr << prefix << std::setw(18) << std::left << miss_label <<
+        std::cout << prefix << std::setw(18) << std::left << miss_label <<
             std::setw(20) << std::fixed << std::setprecision(2) << std::right <<
             ((float)num_misses*100/(num_hits+num_misses)) << "%" << std::endl;
     }
@@ -153,9 +153,9 @@ void
 caching_device_stats_t::print_child_stats(std::string prefix)
 {
     if (num_child_hits != 0) {
-        std::cerr << prefix << std::setw(18) << std::left << "Child hits:" <<
+        std::cout << prefix << std::setw(18) << std::left << "Child hits:" <<
             std::setw(20) << std::right << num_child_hits << std::endl;
-        std::cerr << prefix << std::setw(18) << std::left << "Total miss rate:" <<
+        std::cout << prefix << std::setw(18) << std::left << "Total miss rate:" <<
             std::setw(20) << std::fixed << std::setprecision(2) << std::right <<
             ((float)num_misses*100/(num_hits+num_child_hits+num_misses)) << "%" <<
             std::endl;
@@ -166,11 +166,11 @@ caching_device_stats_t::print_child_stats(std::string prefix)
 void
 caching_device_stats_t::print_stats(std::string prefix)
 {
-    std::cerr.imbue(std::locale("")); // Add commas, at least for my locale
+    std::cout.imbue(std::locale("")); // Add commas, at least for my locale
     print_counts(prefix);
     print_rates(prefix);
     print_child_stats(prefix);
-    std::cerr.imbue(std::locale("C")); // Reset to avoid affecting later prints.
+    std::cout.imbue(std::locale("C")); // Reset to avoid affecting later prints.
 }
 
 void

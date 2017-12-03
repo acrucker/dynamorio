@@ -34,10 +34,16 @@ static struct option long_opts[] =
     {"line_size",         1, NULL, 0},
     {"L2_replace_policy", 1, NULL, 0},
     {"L2_insert_policy",  1, NULL, 0},
+    {"L2_noninc",         0, NULL, 0},
+    {"L2_evict_write",    1, NULL, 0},
     {"L3_replace_policy", 1, NULL, 0},
     {"L3_insert_policy",  1, NULL, 0},
+    {"L3_noninc",         0, NULL, 0},
+    {"L3_evict_write",    1, NULL, 0},
     {"L4_replace_policy", 1, NULL, 0},
     {"L4_insert_policy",  1, NULL, 0},
+    {"L4_noninc",         0, NULL, 0},
+    {"L4_evict_write",    1, NULL, 0},
     {"warmup_insts",      1, NULL, 0},
     {"sim_insts",         1, NULL, 0},
     {"verbose",           0, NULL, 0},
@@ -71,6 +77,10 @@ int main(int argc, char **argv) {
     int verbose;
     bool use_bz2;
     bool warmed;
+    bool L2_alloc_evict, L3_alloc_evict, L4_alloc_evict;
+
+    int L2_evict_after_write, L3_evict_after_write, L4_evict_after_write;
+    
 
     uint64_t warmup_insts;
     uint64_t sim_insts;
@@ -92,6 +102,10 @@ int main(int argc, char **argv) {
     std::string L2_insert_policy("all");
     std::string L3_insert_policy("all");
     std::string L4_insert_policy("all");
+
+    L2_alloc_evict = L3_alloc_evict = L4_alloc_evict = false;
+
+    L2_evict_after_write = L3_evict_after_write = L4_evict_after_write = 0;
 
     std::string trace("");
 
@@ -138,12 +152,30 @@ int main(int argc, char **argv) {
         else if (!strcmp("L4_replace_policy", long_opts[optidx].name))
             L4_replace_policy = std::string(optarg);
 
-        else if (!strcmp("L2_insert_policy", long_opts[optidx].name))
+        else if (!strcmp("L2_noninc", long_opts[optidx].name))
+            L2_alloc_evict = true;
+        else if (!strcmp("L3_noninc", long_opts[optidx].name))
+            L3_alloc_evict = true;
+        else if (!strcmp("L4_noninc", long_opts[optidx].name))
+            L4_alloc_evict = true;
+
+        else if (!strcmp("L2_evict_write", long_opts[optidx].name))
+            L2_evict_after_write = atoi(optarg);
+        else if (!strcmp("L3_evict_write", long_opts[optidx].name))
+            L3_evict_after_write = atoi(optarg);
+        else if (!strcmp("L4_evict_write", long_opts[optidx].name))
+            L4_evict_after_write = atoi(optarg);
+
+        else if (!strcmp("L2_insert_policy", long_opts[optidx].name)) {
             L2_insert_policy = std::string(optarg);
-        else if (!strcmp("L3_insert_policy", long_opts[optidx].name))
+            L2_alloc_evict = true;
+        } else if (!strcmp("L3_insert_policy", long_opts[optidx].name)) {
             L3_insert_policy = std::string(optarg);
-        else if (!strcmp("L4_insert_policy", long_opts[optidx].name))
+            L3_alloc_evict = true;
+        } else if (!strcmp("L4_insert_policy", long_opts[optidx].name)) {
             L4_insert_policy = std::string(optarg);
+            L4_alloc_evict = true;
+        }
 
         else if (!strcmp("trace", long_opts[optidx].name))
             trace = std::string(optarg);
@@ -201,12 +233,12 @@ int main(int argc, char **argv) {
     if (!l4cache->init(L4_assoc, line_size, 
                 L4_size, NULL, new cache_stats_t)) assert(false);
 
-    //assert(l4cache->set_inclusion(L4_inclusion_policy));
+    assert(l4cache->set_inclusion_opts(L4_alloc_evict, L4_evict_after_write, L4_insert_policy));
 
     if (!l3cache->init(L3_assoc, line_size,
                        L3_size, l4cache, new cache_stats_t)) assert(false);
 
-    //assert(l3cache->set_inclusion(L3_inclusion_policy));
+    assert(l3cache->set_inclusion_opts(L3_alloc_evict, L3_evict_after_write, L3_insert_policy));
 
     l2caches = new cache_t* [cores];
     for (int i = 0; i < cores; i++) {
@@ -216,7 +248,7 @@ int main(int argc, char **argv) {
         if (!l2caches[i]->init(L2_assoc, line_size, L2_size, 
                     l3cache, new cache_stats_t)) assert(false);
 
-        //assert(l2caches[i]->set_inclusion(L2_inclusion_policy));
+        assert(l2caches[i]->set_inclusion_opts(L2_alloc_evict, L2_evict_after_write, L2_insert_policy));
     }
 
     for(std::string str; std::getline(trace_buf, str); ) {
@@ -293,27 +325,27 @@ int main(int argc, char **argv) {
             assert(false);
         }
         lines++;
-        if (lines%50000 == 0)
-            printf("Handled %llu lines.\n", lines);
+        if (lines%(1000*1000) == 0)
+            printf("Handled %d million lines.\n", lines/1000/1000);
     }
 
-    printf("Done reading trace file. %d instructions simulated.\n", total_insts);
-    printf("\tTotal %d imiss, %d dmiss.\n", imisscnt, dmisscnt);
-    std::cerr << "Cache simulation results:\n";
+    printf("Done reading trace file. %lu instructions simulated.\n", total_insts);
+    printf("\tTotal %lu imiss, %lu dmiss.\n", imisscnt, dmisscnt);
+    std::cout << "Cache simulation results:\n";
     for (int i = 0; i < cores; i++) {
-        std::cerr << "Core #" << i << std::endl;
-        std::cerr << "  L2 stats:" << std::endl;
+        std::cout << "Core #" << i << std::endl;
+        std::cout << "  L2 stats:" << std::endl;
         l2caches[i]->get_stats()->print_stats("    ");
-        std::cerr << "  L2 wearout stats:" << std::endl;
+        std::cout << "  L2 wearout stats:" << std::endl;
         l2caches[i]->print_wearout("    ");
     }
-    std::cerr << "L3 stats:" << std::endl;
+    std::cout << "L3 stats:" << std::endl;
     l3cache->get_stats()->print_stats("    ");
-    std::cerr << "L3 wearout stats:" << std::endl;
+    std::cout << "L3 wearout stats:" << std::endl;
     l3cache->print_wearout("    ");
-    std::cerr << "L4 stats:" << std::endl;
+    std::cout << "L4 stats:" << std::endl;
     l4cache->get_stats()->print_stats("    ");
-    std::cerr << "L4 wearout stats:" << std::endl;
+    std::cout << "L4 wearout stats:" << std::endl;
     l4cache->print_wearout("    ");
 
     return 0;
