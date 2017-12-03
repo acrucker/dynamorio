@@ -101,10 +101,13 @@ void
 caching_device_t::request(const memref_t &memref_in)
 {
     ext_memref_t gen_memref;
+    memset(&gen_memref, 0, sizeof(gen_memref));
+    if (type_is_write(memref_in.data.type)) {
+        gen_memref.wrcount = 1;
+    } else {
+        gen_memref.rdcount = 1;
+    }
     gen_memref.ref     = memref_in;
-    gen_memref.rdcount = 0;
-    gen_memref.wrcount = 0;
-    gen_memref.core    = 0;
     gen_memref.inst    = false;
     
     caching_device_t::request(gen_memref);
