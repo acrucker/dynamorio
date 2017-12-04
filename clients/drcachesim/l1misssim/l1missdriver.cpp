@@ -243,13 +243,13 @@ int main(int argc, char **argv) {
     assert(l3cache->set_inclusion_opts(L3_alloc_evict, L3_evict_after_write, L3_insert_policy));
 
     l2caches = new cache_t* [cores];
-    //l2stats = new cache_stats_t;
+    l2stats = new cache_stats_t;
     for (int i = 0; i < cores; i++) {
         l2caches[i] = create_cache(L2_replace_policy);
         if (l2caches[i] == NULL) assert(false);
 
         if (!l2caches[i]->init(L2_assoc, line_size, L2_size, 
-                    l3cache, new cache_stats_t)) assert(false);
+                    l3cache, l2stats)) assert(false);
 
         assert(l2caches[i]->set_inclusion_opts(L2_alloc_evict, L2_evict_after_write, L2_insert_policy));
     }
@@ -350,13 +350,13 @@ int main(int argc, char **argv) {
     printf("\tTotal %lu imiss, %lu dmiss.\n", imisscnt, dmisscnt);
     printf("\tTotal %lu ievict, %lu devict.\n", ievictcnt, devictcnt);
     std::cout << "Cache simulation results:\n";
-    for (int i = 0; i < cores; i++) {
-        std::cout << "Core #" << i << std::endl;
+    //for (int i = 0; i < cores; i++) {
+        //std::cout << "Core #" << i << std::endl;
 	std::cout << "L2 stats:" << std::endl;
-	l2caches[i]->get_stats()->print_stats("    ");
+	l2caches[0]->get_stats()->print_stats("    ");
 	std::cout << "L2 wearout stats:" << std::endl;
-	l2caches[i]->print_wearout("    ");
-    }
+	l2caches[0]->print_wearout("    ");
+    //}
     std::cout << "L3 stats:" << std::endl;
     l3cache->get_stats()->print_stats("    ");
     std::cout << "L3 wearout stats:" << std::endl;
