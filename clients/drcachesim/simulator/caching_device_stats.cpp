@@ -69,6 +69,7 @@ caching_device_stats_t::~caching_device_stats_t()
 void
 caching_device_stats_t::access(const memref_t &memref, bool hit)
 {
+    assert(memref.data.type != TRACE_TYPE_EVICT);
     // We assume we're single-threaded.
     // We're only computing miss rate so we just inc counters here.
     if (hit)

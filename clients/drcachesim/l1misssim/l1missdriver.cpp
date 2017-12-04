@@ -243,13 +243,13 @@ int main(int argc, char **argv) {
     assert(l3cache->set_inclusion_opts(L3_alloc_evict, L3_evict_after_write, L3_insert_policy));
 
     l2caches = new cache_t* [cores];
-    l2stats = new cache_stats_t;
+    //l2stats = new cache_stats_t;
     for (int i = 0; i < cores; i++) {
         l2caches[i] = create_cache(L2_replace_policy);
         if (l2caches[i] == NULL) assert(false);
 
         if (!l2caches[i]->init(L2_assoc, line_size, L2_size, 
-                    l3cache, l2stats)) assert(false);
+                    l3cache, new cache_stats_t)) assert(false);
 
         assert(l2caches[i]->set_inclusion_opts(L2_alloc_evict, L2_evict_after_write, L2_insert_policy));
     }
@@ -273,7 +273,7 @@ int main(int argc, char **argv) {
 
         if (!strncmp(str.c_str(), "IB", 2)) {
             rem >> _c >> _i;
-            l2caches[0]->get_stats()->reg_inst(_i);
+            l2caches[_c]->get_stats()->reg_inst(_i);
             l3cache->get_stats()->reg_inst(_i);
             l4cache->get_stats()->reg_inst(_i);
             total_insts += _i;
@@ -288,7 +288,7 @@ int main(int argc, char **argv) {
             memref.evict = false;
             //printf("Handling i-miss to  %16lX at core %d.\n", _a, _c);
             imisscnt++;
-            l2caches[0]->request(memref);
+            l2caches[_c]->request(memref);
         } else if (!strncmp(str.c_str(), "IE", 2)) {
             rem >> _c >> _a >> _rdcnt >> _wrcnt;
             memref.ref.data.type = TRACE_TYPE_EVICT;
@@ -299,7 +299,7 @@ int main(int argc, char **argv) {
             memref.evict = true;
             ievictcnt++;
             //printf("Handling i-evict to  %16lX at core %d.\n", _a, _c);
-            l2caches[0]->request(memref);
+            l2caches[_c]->request(memref);
         } else if (!strncmp(str.c_str(), "DE", 2)) {
             rem >> _c >> _a >> _rdcnt >> _wrcnt;
             memref.ref.data.type = TRACE_TYPE_EVICT;
@@ -313,7 +313,7 @@ int main(int argc, char **argv) {
             devictcnt++;
             //if (_wrcnt > 0) {
                 //printf("Handling d-evict to %16lX at core %d.\n", _a, _c);
-                l2caches[0]->request(memref);
+                l2caches[_c]->request(memref);
            // }
         } else if (!strncmp(str.c_str(), "DW", 2)) {
             rem >> _c >> _a;
@@ -325,7 +325,7 @@ int main(int argc, char **argv) {
             dmisscnt++;
             memref.evict = false;
             //printf("Handling d-write to %16lX at core %d.\n", _a, _c);
-            l2caches[0]->request(memref);
+            l2caches[_c]->request(memref);
         } else if (!strncmp(str.c_str(), "DR", 2)) {
             rem >> _c >> _a;
             memref.ref.data.type = TRACE_TYPE_READ;
@@ -336,7 +336,7 @@ int main(int argc, char **argv) {
             dmisscnt++;
             memref.evict = false;
             //printf("Handling d-read to  %16lX at core %d.\n", _a, _c);
-            l2caches[0]->request(memref);
+            l2caches[_c]->request(memref);
         } else {
             printf("Unknown trace line: %s\n", str.c_str());
             assert(false);
@@ -350,13 +350,13 @@ int main(int argc, char **argv) {
     printf("\tTotal %lu imiss, %lu dmiss.\n", imisscnt, dmisscnt);
     printf("\tTotal %lu ievict, %lu devict.\n", ievictcnt, devictcnt);
     std::cout << "Cache simulation results:\n";
-    //for (int i = 0; i < cores; i++) {
-        //std::cout << "Core #" << i << std::endl;
-	std::cout << "Combined L2 stats:" << std::endl;
-	l2caches[0]->get_stats()->print_stats("    ");
+    for (int i = 0; i < cores; i++) {
+        std::cout << "Core #" << i << std::endl;
+	std::cout << "L2 stats:" << std::endl;
+	l2caches[i]->get_stats()->print_stats("    ");
 	std::cout << "L2 wearout stats:" << std::endl;
-	l2caches[0]->print_wearout("    ");
-    //}
+	l2caches[i]->print_wearout("    ");
+    }
     std::cout << "L3 stats:" << std::endl;
     l3cache->get_stats()->print_stats("    ");
     std::cout << "L3 wearout stats:" << std::endl;

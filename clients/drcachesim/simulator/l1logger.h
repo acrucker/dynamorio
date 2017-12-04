@@ -12,6 +12,7 @@ class l1logger {
     bool active;
     std::ofstream out_stream;
     boost::iostreams::filtering_ostream output;
+    char buf[1000];
 public:
     l1logger(const std::string &out_file) {
         if (out_file.empty()) {
@@ -37,17 +38,18 @@ public:
         output << "IB " << core << " " << count << std::endl;
     }
 
-    void log_icache_miss(int core, uintptr_t addr) {
+    void log_icache_miss(int core, uint64_t addr) {
         if (!active) return;
         output << "IM " << core << " " << addr << std::endl;
     }
 
-    void log_icache_evict(int core, uintptr_t addr, int rdcount, int wrcount) {
+    void log_icache_evict(int core, uint64_t addr, int rdcount, int wrcount) {
         if (!active) return;
+        assert((addr&0x3F) == 0);
         output << "IE " << core << " " << addr << " " << rdcount << " " << wrcount << std::endl;
     }
 
-    void log_dcache_miss(int core, uintptr_t addr, bool write) {
+    void log_dcache_miss(int core, uint64_t addr, bool write) {
         if (!active) return;
         if (write)
             output << "DW " << core << " " << addr << std::endl;
@@ -55,8 +57,9 @@ public:
             output << "DR " << core  << " "<< addr << std::endl;
     }
 
-    void log_dcache_evict(int core, uintptr_t addr, int rdcount, int wrcount) {
+    void log_dcache_evict(int core, uint64_t addr, int rdcount, int wrcount) {
         if (!active) return;
+        assert((addr&0x3F) == 0);
         output << "DE " << core << " " << addr << " " << rdcount << " " << wrcount << std::endl;
     }
 };

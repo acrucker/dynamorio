@@ -112,7 +112,6 @@ caching_device_t::request(const memref_t &memref_in)
     gen_memref.evict   = false;
     
     caching_device_t::request(gen_memref);
-    assert(false);
 }
 
 bool
@@ -132,6 +131,9 @@ caching_device_t::set_inclusion_opts(bool _alloc_on_evict,
     } else if (!strncmp(include_policy.c_str(), "rand_", 5)) {
         int randpct = atoi(include_policy.c_str()+5);
         inclusion = new include_random(randpct);
+    } else if (!strncmp(include_policy.c_str(), "bloom_", 6)) {
+        int bloomsize = atoi(include_policy.c_str()+6);
+        inclusion = new include_bloom(bloomsize);
     } else {
         return false;
     }
@@ -150,7 +152,7 @@ caching_device_t::evict(int block_idx, int way) {
     wb.ref.data.pid = 0;
     wb.ref.data.tid = 0;
     wb.ref.data.addr = b.tag << block_size_bits;
-    wb.ref.data.size = block_size;
+    wb.ref.data.size = 1;
     wb.ref.data.pc = 0;
     wb.rdcount = b.rdcount;
     wb.wrcount = b.wrcount;
@@ -241,7 +243,7 @@ caching_device_t::request(const ext_memref_t &ext_memref_in)
                     write_update(block_idx, way);
                     get_caching_device_block(block_idx, way).dirty = true;
                     get_caching_device_block(block_idx, way).wrcount++;
-                    if (evict_after_n_writes && get_caching_device_block(block_idx, way).wrcount > evict_after_n_writes) {
+                    if (evict_after_n_writes && get_caching_device_block(block_idx, way).wrcount >= evict_after_n_writes) {
                         evict(block_idx, way);
                         break;
                     }
@@ -249,17 +251,17 @@ caching_device_t::request(const ext_memref_t &ext_memref_in)
                     get_caching_device_block(block_idx, way).rdcount++;
 	        	    get_caching_device_block(block_idx, way).everinst |= ext_memref_in.inst;
                 }
-                if (!is_evict || ext_memref_in.wrcount) {
+                if (!is_evict) { // || ext_memref_in.wrcount) {
     	            stats->access(ext_memref.ref, true/*hit*/);
-        		    if (parent != NULL)
-	                    parent->stats->child_access(ext_memref.ref, true);
-		        }
+                    if (parent != NULL)
+                        parent->stats->child_access(ext_memref.ref, true);
+                }
                 break;
             }
         }
 
         if (way == associativity) {
-            if (!is_evict || ext_memref_in.wrcount) {
+            if (!is_evict) { // || ext_memref_in.wrcount) {
                 stats->access(ext_memref.ref, false/*miss*/);
                 missed = true;
                 // If no parent we assume we get the data from main memory
@@ -270,14 +272,18 @@ caching_device_t::request(const ext_memref_t &ext_memref_in)
             }
 
             // Don't allocate on miss if we're allocating on evictions from below
-            //if (alloc_on_evict && !is_evict)
-                //continue;
+            if (alloc_on_evict && !is_evict)
+                continue;
 
             // If the insertion policy tells us not to allocate, don't
             if (alloc_on_evict && !inclusion->should_alloc(tag << block_size_bits,
                         ext_memref_in.rdcount, ext_memref_in.wrcount, 
                         ext_memref_in.inst))
                 continue;
+
+            // If allocating on evict, miss hasn't been processed
+            if (alloc_on_evict && parent && !ext_memref_in.wrcount)
+                parent->request(ext_memref);
                         
             // FIXME i#1726: coherence policy
 
