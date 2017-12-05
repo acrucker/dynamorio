@@ -188,8 +188,6 @@ caching_device_t::request(const ext_memref_t &ext_memref_in)
     const memref_t &memref_in = ext_memref_in.ref;
 
     bool is_evict = ext_memref_in.evict;
-
-    // Update counters with subordinate stats
     
     // Disregard totally unused subordinate evictions
     if (is_evict && !ext_memref_in.rdcount && !ext_memref_in.wrcount)
@@ -239,6 +237,8 @@ caching_device_t::request(const ext_memref_t &ext_memref_in)
         for (way = 0; way < associativity; ++way) {
             if (get_caching_device_block(block_idx, way).tag == tag) {
                 access_update(block_idx, way);
+                get_caching_device_block(block_idx, way).rdcount += ext_memref_in.rdcount;
+                get_caching_device_block(block_idx, way).wrcount += ext_memref_in.wrcount;
                 if (type_is_write(ext_memref.ref.data.type)) {
                     write_update(block_idx, way);
                     get_caching_device_block(block_idx, way).dirty = true;
@@ -303,6 +303,8 @@ caching_device_t::request(const ext_memref_t &ext_memref_in)
                 }
             }
             caching_device_block_t &b = get_caching_device_block(block_idx, way);
+            b.rdcount = ext_memref_in.rdcount;
+            b.wrcount = ext_memref_in.wrcount;
             b.everinst = ext_memref_in.inst;
             b.tag = tag;
             write_update(block_idx, way);
