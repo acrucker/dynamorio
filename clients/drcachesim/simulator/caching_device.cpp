@@ -164,7 +164,7 @@ caching_device_t::evict(int block_idx, int way) {
         inclusion->update_evict(b.tag<<block_size_bits, b.rdcount, b.wrcount);
         if (logger) {
             uintptr_t addr = b.tag << block_size_bits;
-            if (isicache) {
+            if (isicache || b.everinst) {
                 logger->log_icache_evict(core, addr, b.rdcount, b.wrcount);
             } else {
                 logger->log_dcache_evict(core, addr, b.rdcount, b.wrcount);
@@ -290,13 +290,13 @@ caching_device_t::request(const ext_memref_t &ext_memref_in)
             way = replace_which_way(block_idx);
             evict(block_idx, way);
 
-            if (logger && isicache) {
+            if (logger && !isicache) {
                 logger->log_instr_bundle(core, recent_instructions);
                 recent_instructions = 0;
             }
             if (logger) {
                 uintptr_t addr = tag << block_size_bits;
-                if (isicache) {
+                if (isicache || ext_memref_in.inst) {
                     logger->log_icache_miss(core, addr);
                 } else {
                     logger->log_dcache_miss(core, addr, type_is_write(ext_memref.ref.data.type));

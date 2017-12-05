@@ -46,8 +46,11 @@ static struct option long_opts[] =
     {"L4_evict_write",    1, NULL, 0},
     {"warmup_insts",      1, NULL, 0},
     {"sim_insts",         1, NULL, 0},
+    {"sim_insts",         1, NULL, 0},
     {"verbose",           0, NULL, 0},
-    {"trace",             1, NULL, 0},
+    {"L1_trace",          1, NULL, 0},
+    {"L2_trace",          1, NULL, 0},
+    {"L2_trace_out",      1, NULL, 0},
     {NULL,                0, NULL, 0}
 };
 
@@ -78,6 +81,7 @@ int main(int argc, char **argv) {
     bool use_bz2;
     bool warmed;
     bool L2_alloc_evict, L3_alloc_evict, L4_alloc_evict;
+    bool use_L2_trace;
 
     int L2_evict_after_write, L3_evict_after_write, L4_evict_after_write;
     cache_stats_t *l2stats;
@@ -88,6 +92,7 @@ int main(int argc, char **argv) {
     uint64_t imisscnt, dmisscnt;
     uint64_t ievictcnt, devictcnt;
     uint64_t lines;
+    l1logger *l2logger;
 
     cache_t **l2caches;
 
@@ -104,11 +109,14 @@ int main(int argc, char **argv) {
     std::string L3_insert_policy("all");
     std::string L4_insert_policy("all");
 
+    use_L2_trace = false;
+
     L2_alloc_evict = L3_alloc_evict = L4_alloc_evict = false;
 
     L2_evict_after_write = L3_evict_after_write = L4_evict_after_write = 0;
 
     std::string trace("");
+    std::string L2_trace_out("");
 
     std::ifstream trace_file;
     boost::iostreams::filtering_istream trace_buf;
@@ -179,8 +187,18 @@ int main(int argc, char **argv) {
             L4_alloc_evict = true;
         }
 
-        else if (!strcmp("trace", long_opts[optidx].name))
+        else if (!strcmp("L1_trace", long_opts[optidx].name)) {
             trace = std::string(optarg);
+            use_L2_trace = false;
+        } else if (!strcmp("L2_trace", long_opts[optidx].name)) {
+            trace = std::string(optarg);
+            use_L2_trace = true;
+        }
+
+        else if (!strcmp("L2_trace_out", long_opts[optidx].name)) {
+            L2_trace_out = std::string(optarg);
+            assert(!use_L2_trace);
+        }
 
         else if (!strcmp("cores", long_opts[optidx].name))
             cores = atoi(optarg);
@@ -205,9 +223,12 @@ int main(int argc, char **argv) {
         exit(-1);
     }
 
+    l2logger = new l1logger(L2_trace_out);
+
     printf("Cores: %d\nLine size: %d\nVerbose: %d\nWarmup insts: %lu\nSim insts: %lu\n",
             cores, line_size, verbose, warmup_insts, sim_insts);
-    printf("Trace: %s\n", trace.c_str());
+    printf("%s trace: %s\n", use_L2_trace?"L2":"L1", trace.c_str());
+    printf("L2 trace out: %s\n", L2_trace_out.c_str());;
     printf("L2 caches:\n\tSize: %d\n\tAssoc: %d\n\tReplace: %s\n\tInsert: %s\n",
             L2_size, L2_assoc, L2_replace_policy.c_str(), L2_insert_policy.c_str());
     printf("L3 cache:\n\tSize: %d\n\tAssoc: %d\n\tReplace: %s\n\tInsert: %s\n",
@@ -251,6 +272,8 @@ int main(int argc, char **argv) {
         if (!l2caches[i]->init(L2_assoc, line_size, L2_size, 
                     l3cache, l2stats)) assert(false);
 
+        l2caches[i]->set_miss_logger(false, i, l2logger);
+
         assert(l2caches[i]->set_inclusion_opts(L2_alloc_evict, L2_evict_after_write, L2_insert_policy));
     }
 
@@ -274,6 +297,7 @@ int main(int argc, char **argv) {
         if (!strncmp(str.c_str(), "IB", 2)) {
             rem >> _c >> _i;
             l2caches[_c]->get_stats()->reg_inst(_i);
+            l2caches[_c]->reg_inst(_i);
             l3cache->get_stats()->reg_inst(_i);
             l4cache->get_stats()->reg_inst(_i);
             total_insts += _i;
@@ -365,6 +389,8 @@ int main(int argc, char **argv) {
     l4cache->get_stats()->print_stats("    ");
     std::cout << "L4 wearout stats:" << std::endl;
     l4cache->print_wearout("    ");
+
+    delete l2logger;
 
     return 0;
 }
