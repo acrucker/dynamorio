@@ -204,7 +204,7 @@ droption_t<std::string> op_replace_policy
  "FIFO (First-In-First-Out).");
 
 droption_t<std::string> op_data_prefetcher
-(DROPTION_SCOPE_FRONTEND, "data_prefetcher", PREFETCH_POLICY_NEXTLINE,
+(DROPTION_SCOPE_FRONTEND, "data_prefetcher", PREFETCH_POLICY_NONE,
  "Hardware data prefetcher policy (nextline, none)", "Specifies the hardware data "
  "prefetcher policy.  The currently supported policies are 'nextline' (fetch the "
  "subsequent cache line) and 'none' (disables hardware prefetching).  The prefetcher "

@@ -48,7 +48,7 @@ struct include_bloom : public cache_inclusion_t {
         }
     }
     bool should_alloc(int addr, int rdcount, int wrcount, bool isinst) {
-        int hash = (((addr/size)^addr)>>6)%size;
+        int hash = ((unsigned int)(((addr/size)^addr)>>6))%size;
         return !filt[hash];
     }
 };

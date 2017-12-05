@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <iostream>
+#include <iomanip>
 #include <sstream>
 #include <getopt.h>
 #include <stdio.h>
@@ -32,6 +33,7 @@ static struct option long_opts[] =
     {"L4_assoc",          1, NULL, 0},
     {"cores",             1, NULL, 0},
     {"line_size",         1, NULL, 0},
+    {"L2_unify_stats",    0, NULL, 0},
     {"L2_replace_policy", 1, NULL, 0},
     {"L2_insert_policy",  1, NULL, 0},
     {"L2_noninc",         0, NULL, 0},
@@ -78,6 +80,8 @@ int main(int argc, char **argv) {
     bool use_bz2;
     bool warmed;
     bool L2_alloc_evict, L3_alloc_evict, L4_alloc_evict;
+
+    bool L2_unify_stats;
 
     int L2_evict_after_write, L3_evict_after_write, L4_evict_after_write;
     cache_stats_t *l2stats;
@@ -131,6 +135,7 @@ int main(int argc, char **argv) {
     ievictcnt = devictcnt = 0;
 
     lines = 0;
+    L2_unify_stats = false;
 
     while (!getopt_long_only(argc, argv, "", long_opts, &optidx)) {
         if (!strcmp("L2_size", long_opts[optidx].name))
@@ -178,6 +183,9 @@ int main(int argc, char **argv) {
             L4_insert_policy = std::string(optarg);
             L4_alloc_evict = true;
         }
+
+        else if (!strcmp("L2_unify_stats", long_opts[optidx].name))
+            L2_unify_stats = true;
 
         else if (!strcmp("trace", long_opts[optidx].name))
             trace = std::string(optarg);
@@ -248,8 +256,13 @@ int main(int argc, char **argv) {
         l2caches[i] = create_cache(L2_replace_policy);
         if (l2caches[i] == NULL) assert(false);
 
-        if (!l2caches[i]->init(L2_assoc, line_size, L2_size, 
-                    l3cache, l2stats)) assert(false);
+        if (L2_unify_stats) {
+            if (!l2caches[i]->init(L2_assoc, line_size, L2_size, 
+                l3cache, l2stats)) assert(false);
+        } else {
+            if (!l2caches[i]->init(L2_assoc, line_size, L2_size, 
+                l3cache, new cache_stats_t)) assert(false);
+        }
 
         assert(l2caches[i]->set_inclusion_opts(L2_alloc_evict, L2_evict_after_write, L2_insert_policy));
     }
@@ -294,6 +307,8 @@ int main(int argc, char **argv) {
             memref.ref.data.type = TRACE_TYPE_EVICT;
             memref.core = _c;
             memref.inst = true;
+            memref.rdcount = _rdcnt;
+            memref.wrcount = _wrcnt;
             memref.ref.data.size = 1;
             memref.ref.data.addr = _a;
             memref.evict = true;
@@ -350,13 +365,35 @@ int main(int argc, char **argv) {
     printf("\tTotal %lu imiss, %lu dmiss.\n", imisscnt, dmisscnt);
     printf("\tTotal %lu ievict, %lu devict.\n", ievictcnt, devictcnt);
     std::cout << "Cache simulation results:\n";
-    //for (int i = 0; i < cores; i++) {
-        //std::cout << "Core #" << i << std::endl;
-	std::cout << "L2 stats:" << std::endl;
-	l2caches[0]->get_stats()->print_stats("    ");
-	std::cout << "L2 wearout stats:" << std::endl;
-	l2caches[0]->print_wearout("    ");
-    //}
+    if (L2_unify_stats) {
+        int_least64_t max_wearout, total_wearout;  
+        int num_blocks;
+        std::string prefix = "    ";
+        max_wearout = total_wearout = 0;
+        std::cout << "L2 unified stats:" << std::endl;
+        l2caches[0]->get_stats()->print_stats("    ");
+        num_blocks = l2caches[0]->num_blocks*cores;
+        for (int i=0; i<cores; i++) {
+            if (l2caches[i]->max_wearout() > max_wearout)
+                max_wearout = l2caches[i]->max_wearout();
+            total_wearout += l2caches[i]->total_wearout();
+        }
+        std::cout << prefix << std::setw(18) << std::left << "Maximum wear:" <<
+            std::setw(20) << std::right << max_wearout << std::endl;
+        std::cout << prefix << std::setw(18) << std::left << "Mean wear:" <<
+            std::setw(20) << std::fixed << std::setprecision(4) << std::right <<
+            ((float)total_wearout/num_blocks) << std::endl;
+        std::cout << prefix << std::setw(18) << std::left << "Total updates:" <<
+            std::setw(20) << std::right << total_wearout << std::endl;
+    } else {
+        for (int i = 0; i < cores; i++) {
+            std::cout << "Core #" << i << std::endl;
+            std::cout << "    L2 stats:" << std::endl;
+            l2caches[i]->get_stats()->print_stats("        ");
+            std::cout << "    L2 wearout stats:" << std::endl;
+            l2caches[i]->print_wearout("        ");
+        }
+    }
     std::cout << "L3 stats:" << std::endl;
     l3cache->get_stats()->print_stats("    ");
     std::cout << "L3 wearout stats:" << std::endl;

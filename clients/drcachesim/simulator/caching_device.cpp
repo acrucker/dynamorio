@@ -192,8 +192,8 @@ caching_device_t::request(const ext_memref_t &ext_memref_in)
     // Update counters with subordinate stats
     
     // Disregard totally unused subordinate evictions
-    if (is_evict && !ext_memref_in.rdcount && !ext_memref_in.wrcount)
-        return;
+    //if (is_evict && !ext_memref_in.rdcount && !ext_memref_in.wrcount)
+    //    return;
 
     // If allocation is being done on misses and this is a clean evict, disregard
     if (!alloc_on_evict && is_evict && ext_memref_in.wrcount == 0)
@@ -207,7 +207,7 @@ caching_device_t::request(const ext_memref_t &ext_memref_in)
     addr_t tag = compute_tag(memref_in.data.addr);
 
     assert(!(isicache && type_is_write(memref_in.data.type)));
-
+#if 0
     // Optimization: check last tag if single-block and read and miss
     if (tag == final_tag && tag == last_tag && !is_evict && !type_is_write(memref_in.data.type)) {
         // Make sure last_tag is properly in sync.
@@ -221,6 +221,7 @@ caching_device_t::request(const ext_memref_t &ext_memref_in)
         access_update(last_block_idx, last_way);
         return;
     }
+#endif
 
     // Invalidate last tag when handling writes
     last_tag = TAG_INVALID;
@@ -333,25 +334,37 @@ caching_device_t::write_update(int block_idx, int way)
     get_caching_device_block(block_idx, way).wearout_counter++;
 }
 
-void
-caching_device_t::print_wearout(std::string prefix)
+int_least64_t
+caching_device_t::max_wearout() const
 {
     int_least64_t max_wearout = 0;
-    int_least64_t total_wearout = 0;
     for (int i=0; i<num_blocks; i++) {
         if(blocks[i]->wearout_counter > max_wearout)
             max_wearout = blocks[i]->wearout_counter;
+    }
+    return max_wearout;
+}
 
+int_least64_t
+caching_device_t::total_wearout() const
+{
+    int_least64_t total_wearout = 0;
+    for (int i=0; i<num_blocks; i++) {
         total_wearout += blocks[i]->wearout_counter;
     }
+    return total_wearout;
+}
 
+void
+caching_device_t::print_wearout(std::string prefix)
+{
     std::cout << prefix << std::setw(18) << std::left << "Maximum wear:" <<
-        std::setw(20) << std::right << max_wearout << std::endl;
+        std::setw(20) << std::right << max_wearout() << std::endl;
     std::cout << prefix << std::setw(18) << std::left << "Mean wear:" <<
         std::setw(20) << std::fixed << std::setprecision(4) << std::right <<
-        ((float)total_wearout/num_blocks) << std::endl;
+        ((float)total_wearout()/num_blocks) << std::endl;
     std::cout << prefix << std::setw(18) << std::left << "Total updates:" <<
-        std::setw(20) << std::right << total_wearout << std::endl;
+        std::setw(20) << std::right << total_wearout() << std::endl;
 }
 
 void

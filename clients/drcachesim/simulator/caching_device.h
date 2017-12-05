@@ -75,7 +75,10 @@ class caching_device_t
     prefetcher_t *get_prefetcher() const { return prefetcher; }
     caching_device_t *get_parent() const { return parent; }
 
+    int_least64_t max_wearout() const;
+    int_least64_t total_wearout() const;
     virtual void print_wearout(std::string prefix);
+    int num_blocks;
 
  protected:
     cache_inclusion_t *inclusion;
@@ -98,7 +101,6 @@ class caching_device_t
 
     int associativity;
     int block_size;
-    int num_blocks;
     caching_device_t *parent;
     // This should be an array of caching_device_block_t pointers, otherwise
     // an extended block class which has its own member variables cannot be indexed
