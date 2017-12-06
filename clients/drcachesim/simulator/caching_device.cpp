@@ -179,7 +179,6 @@ caching_device_t::evict(int block_idx, int way) {
     if (parent) 
         parent->request(wb);
     if (b.tag != TAG_INVALID) {
-        inclusion->update_evict(b.tag<<block_size_bits, b.rdcount, b.wrcount);
         if (logger) {
             uintptr_t addr = b.tag << block_size_bits;
             if (isicache || b.everinst) {
@@ -263,6 +262,7 @@ caching_device_t::request(const ext_memref_t &ext_memref_in)
                     get_caching_device_block(block_idx, way).dirty = true;
                     get_caching_device_block(block_idx, way).wrcount++;
                     if (evict_after_n_writes && get_caching_device_block(block_idx, way).wrcount >= evict_after_n_writes) {
+                        inclusion->update_evict(tag<<block_size_bits);
                         evict(block_idx, way);
                         break;
                     }
@@ -355,7 +355,6 @@ caching_device_t::write_update(int block_idx, int way)
     get_caching_device_block(block_idx, way).wearout_counter++;
 }
 
-<<<<<<< HEAD
 void
 caching_device_t::reset_wearout()
 {
@@ -363,12 +362,8 @@ caching_device_t::reset_wearout()
         blocks[i]->wearout_counter = 0;
 }
 
-void
-caching_device_t::print_wearout(std::string prefix)
-=======
 int_least64_t
 caching_device_t::max_wearout() const
->>>>>>> 4c2c27d7c71077d756cae89b3b88a74b05462460
 {
     int_least64_t max_wearout = 0;
     for (int i=0; i<num_blocks; i++) {
