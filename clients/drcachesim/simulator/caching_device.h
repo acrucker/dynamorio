@@ -66,11 +66,13 @@ class caching_device_t
     void set_stats(caching_device_stats_t *stats_) { stats = stats_; }
     bool set_inclusion_opts(bool _alloc_on_evict, int _evict_after_n_writes,
             std::string include_policy);
-    void reg_inst() { recent_instructions++; }
+    void reg_inst(int c=1) { recent_instructions+=c;}
     void set_miss_logger(bool isicache_, int core_, l1logger *logger_) { 
         core = core_;
         isicache = isicache_;
         logger = logger_; 
+        if (logger->active)
+            parent = NULL;
     }
     prefetcher_t *get_prefetcher() const { return prefetcher; }
     caching_device_t *get_parent() const { return parent; }
