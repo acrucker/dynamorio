@@ -61,8 +61,7 @@ caching_device_t::init(int associativity_, int block_size_, int num_blocks_,
                        caching_device_t *parent_, caching_device_stats_t *stats_,
                        prefetcher_t *prefetcher_)
 {
-    if (!IS_POWER_OF_2(associativity_) ||
-        !IS_POWER_OF_2(block_size_) ||
+    if (!IS_POWER_OF_2(block_size_) ||
         !IS_POWER_OF_2(num_blocks_) ||
         // Assuming caching device block size is at least 4 bytes
         block_size_ < 4)
@@ -75,11 +74,10 @@ caching_device_t::init(int associativity_, int block_size_, int num_blocks_,
     block_size = block_size_;
     num_blocks = num_blocks_;
     blocks_per_set = num_blocks / associativity;
-    assoc_bits = compute_log2(associativity);
     block_size_bits = compute_log2(block_size);
     recent_instructions = 0;
     blocks_per_set_mask = blocks_per_set - 1;
-    if (assoc_bits == -1 || block_size_bits == -1 || !IS_POWER_OF_2(blocks_per_set))
+    if (block_size_bits == -1 || !IS_POWER_OF_2(blocks_per_set))
         return false;
     parent = parent_;
     stats = stats_;
