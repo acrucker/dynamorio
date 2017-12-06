@@ -118,6 +118,8 @@ caching_device_stats_t::print_counts(std::string prefix)
         std::setw(20) << std::right << num_hits << std::endl;
     std::cout << prefix << std::setw(18) << std::left << "Misses:" <<
         std::setw(20) << std::right << num_misses << std::endl;
+    std::cout << prefix << std::setw(18) << std::left << "Total:" <<
+        std::setw(20) << std::right << num_misses+num_hits << std::endl;
     std::cout << prefix << std::setw(18) << std::left << "MPKI:" <<
         std::setw(20) << std::fixed << std::setprecision(2) << std::right <<
         ((float)num_misses*1000/(num_instructions)) << std::endl;
