@@ -90,7 +90,7 @@ class caching_device_t
 
     inline addr_t compute_tag(addr_t addr) { return addr >> block_size_bits; }
     inline int compute_block_idx(addr_t tag) {
-        return (tag & blocks_per_set_mask) << assoc_bits;
+        return (tag & blocks_per_set_mask) * associativity;
     }
     inline caching_device_block_t& get_caching_device_block(int block_idx, int way) {
         return *(blocks[block_idx + way]);
@@ -110,7 +110,6 @@ class caching_device_t
     int recent_instructions;
     // Optimization fields for fast bit operations
     int blocks_per_set_mask;
-    int assoc_bits;
     int block_size_bits;
 
     caching_device_stats_t *stats;
