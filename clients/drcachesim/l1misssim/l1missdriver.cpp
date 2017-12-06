@@ -44,9 +44,8 @@ static struct option long_opts[] =
     {"L4_insert_policy",  1, NULL, 0},
     {"L4_noninc",         0, NULL, 0},
     {"L4_evict_write",    1, NULL, 0},
-    {"warmup_insts",      1, NULL, 0},
-    {"sim_insts",         1, NULL, 0},
-    {"sim_insts",         1, NULL, 0},
+    {"warmup_misses",     1, NULL, 0},
+    {"sim_misses",        1, NULL, 0},
     {"verbose",           0, NULL, 0},
     {"L1_trace",          1, NULL, 0},
     {"L2_trace",          1, NULL, 0},
@@ -86,8 +85,9 @@ int main(int argc, char **argv) {
     int L2_evict_after_write, L3_evict_after_write, L4_evict_after_write;
     cache_stats_t *l2stats;
     
-    uint64_t warmup_insts;
-    uint64_t sim_insts;
+    uint64_t warmup_misses;
+    uint64_t sim_misses;
+    uint64_t total_misses;
     uint64_t total_insts;
     uint64_t imisscnt, dmisscnt;
     uint64_t ievictcnt, devictcnt;
@@ -131,9 +131,9 @@ int main(int argc, char **argv) {
     verbose = 0;
 
     warmed = false;
-    warmup_insts = 0;
-    total_insts = 0;
-    sim_insts = -1;
+    warmup_misses = 0;
+    total_misses = total_insts = 0;
+    sim_misses = -1;
 
     imisscnt = dmisscnt = 0;
     ievictcnt = devictcnt = 0;
@@ -209,10 +209,10 @@ int main(int argc, char **argv) {
         else if (!strcmp("verbose", long_opts[optidx].name))
             verbose = 1;
 
-        else if (!strcmp("warmup_insts", long_opts[optidx].name))
-            warmup_insts = atol(optarg);
-        else if (!strcmp("sim_insts", long_opts[optidx].name))
-            sim_insts = atol(optarg);
+        else if (!strcmp("warmup_misses", long_opts[optidx].name))
+            warmup_misses = atol(optarg);
+        else if (!strcmp("sim_misses", long_opts[optidx].name))
+            sim_misses = atol(optarg);
 
         else
             assert(false);
@@ -225,8 +225,8 @@ int main(int argc, char **argv) {
 
     l2logger = new l1logger(L2_trace_out);
 
-    printf("Cores: %d\nLine size: %d\nVerbose: %d\nWarmup insts: %lu\nSim insts: %lu\n",
-            cores, line_size, verbose, warmup_insts, sim_insts);
+    printf("Cores: %d\nLine size: %d\nVerbose: %d\nWarmup misses: %lu\nSim misses: %lu\n",
+            cores, line_size, verbose, warmup_misses, sim_misses);
     printf("%s trace: %s\n", use_L2_trace?"L2":"L1", trace.c_str());
     printf("L2 trace out: %s\n", L2_trace_out.c_str());;
     printf("L2 caches:\n\tSize: %d\n\tAssoc: %d\n\tReplace: %s\n\tInsert: %s\n",
@@ -282,12 +282,19 @@ int main(int argc, char **argv) {
         int _c, _i, _rdcnt, _wrcnt;
         uint64_t _a;
 
-        if (total_insts > warmup_insts && !warmed) {
+        if (total_misses > warmup_misses && !warmed) {
             warmed = true;
-            for(int i=0; i<cores; i++)
+            for(int i=0; i<cores; i++) {
                 l2caches[i]->get_stats()->reset();
+                l2caches[i]->reset_wearout();
+            }
             l3cache->get_stats()->reset();
             l4cache->get_stats()->reset();
+            l3cache->reset_wearout();
+            l4cache->reset_wearout();
+        } else if (total_misses > sim_misses) {   
+            printf("Hit miss simulation threshold.\n");
+            break;
         }
 
         memset(&memref, 0, sizeof(ext_memref_t));
@@ -312,6 +319,7 @@ int main(int argc, char **argv) {
             memref.evict = false;
             //printf("Handling i-miss to  %16lX at core %d.\n", _a, _c);
             imisscnt++;
+            total_misses++;
             l2caches[_c]->request(memref);
         } else if (!strncmp(str.c_str(), "IE", 2)) {
             rem >> _c >> _a >> _rdcnt >> _wrcnt;
@@ -320,6 +328,8 @@ int main(int argc, char **argv) {
             memref.inst = true;
             memref.ref.data.size = 1;
             memref.ref.data.addr = _a;
+            memref.rdcount = _rdcnt;
+            memref.wrcount = _wrcnt;
             memref.evict = true;
             ievictcnt++;
             //printf("Handling i-evict to  %16lX at core %d.\n", _a, _c);
@@ -335,6 +345,7 @@ int main(int argc, char **argv) {
             memref.ref.data.addr = _a;
             memref.evict = true;
             devictcnt++;
+            total_misses++;
             //if (_wrcnt > 0) {
                 //printf("Handling d-evict to %16lX at core %d.\n", _a, _c);
                 l2caches[_c]->request(memref);
@@ -372,6 +383,8 @@ int main(int argc, char **argv) {
 
     printf("Done reading trace file. %lu instructions simulated.\n", total_insts);
     printf("\tTotal %lu imiss, %lu dmiss.\n", imisscnt, dmisscnt);
+    printf("\tL1I MPKI: %6.2f\n", 1000.0*imisscnt/total_insts);
+    printf("\tL1D MPKI: %6.2f\n", 1000.0*dmisscnt/total_insts);
     printf("\tTotal %lu ievict, %lu devict.\n", ievictcnt, devictcnt);
     std::cout << "Cache simulation results:\n";
     //for (int i = 0; i < cores; i++) {

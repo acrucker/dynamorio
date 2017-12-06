@@ -21,6 +21,18 @@ struct include_none : public cache_inclusion_t {
     bool should_alloc(int addr, int rdcount, int wrcount, bool isinst) {return false;}
 };
 
+struct include_inst : public cache_inclusion_t {
+    void update_evict(int addr, int rdcount, int wrcount) {}
+    bool should_alloc(int addr, int rdcount, int wrcount, bool isinst) {return isinst;}
+};
+
+struct include_read_threshold : public cache_inclusion_t {
+    int threshold;
+    include_read_threshold(int _threshold) : threshold(_threshold) {}
+    void update_evict(int addr, int rdcount, int wrcount) {}
+    bool should_alloc(int addr, int rdcount, int wrcount, bool isinst) {return rdcount >= threshold;}
+};
+
 struct include_write_threshold : public cache_inclusion_t {
     int threshold;
     include_write_threshold(int _threshold) : threshold(_threshold) {}
@@ -37,19 +49,41 @@ struct include_random : public cache_inclusion_t {
 
 struct include_bloom : public cache_inclusion_t {
     int size;
+    int threshold;
+    bool clean;
+    int hashcount;
     vector<bool> filt;
-    include_bloom(int _size) : size(_size) {
+    include_bloom(int _size, int _hashcount, int _threshold, bool _clean) :
+		size(_size), hashcount(_hashcount), threshold(_threshold), clean(_clean) {
         filt.resize(size);
     }
     void update_evict(int addr, int rdcount, int wrcount) {
-        if (wrcount > 0) {
-            int hash = (((addr/size)^addr)>>6)%size;
-            filt[hash] = true;
+        if (wrcount > threshold) {
+            for (int i=0; i<hashcount; i++) {
+                unsigned int hash = fnv_hash(i, addr) % size;
+                filt[hash] = true;
+            }
         }
     }
     bool should_alloc(int addr, int rdcount, int wrcount, bool isinst) {
-        int hash = (((addr/size)^addr)>>6)%size;
-        return !filt[hash];
+        if (clean && wrcount)
+            return false;
+        bool present = true;
+        for (int i=0; i<hashcount; i++) {
+            unsigned int hash = fnv_hash(i, addr) % size;
+            present &= filt[hash];
+        }
+        return !present;
+    }
+    uint64_t fnv_hash(uint64_t ind, uint64_t addr) {
+        uint64_t hash = 0xcbf29ce484222325ULL;
+        hash ^= ind;
+        hash *= 1099511628211ULL;
+        for  (int i=0; i<8; i++) {
+            hash ^= (addr>>(8*i))&0xFF;
+            hash *= 1099511628211ULL;
+        }
+        return hash;
     }
 };
 

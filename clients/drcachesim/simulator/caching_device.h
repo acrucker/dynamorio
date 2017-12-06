@@ -77,6 +77,7 @@ class caching_device_t
     prefetcher_t *get_prefetcher() const { return prefetcher; }
     caching_device_t *get_parent() const { return parent; }
 
+    virtual void reset_wearout();
     virtual void print_wearout(std::string prefix);
 
  protected:

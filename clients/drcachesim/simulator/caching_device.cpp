@@ -62,7 +62,7 @@ caching_device_t::init(int associativity_, int block_size_, int num_blocks_,
                        prefetcher_t *prefetcher_)
 {
     if (!IS_POWER_OF_2(block_size_) ||
-        !IS_POWER_OF_2(num_blocks_) ||
+        !IS_POWER_OF_2(num_blocks_/associativity_) ||
         // Assuming caching device block size is at least 4 bytes
         block_size_ < 4)
         return false;
@@ -120,18 +120,38 @@ caching_device_t::set_inclusion_opts(bool _alloc_on_evict,
         return false;
 
     if(!strcmp(include_policy.c_str(), "all")) {
+        if (!core) printf("Include all\n");
         inclusion = new include_all();
     } else if (!strcmp(include_policy.c_str(), "none")) {
+        if (!core) printf("Include none\n");
         inclusion = new include_none();
+    } else if (!strcmp(include_policy.c_str(), "inst")) {
+        if (!core) printf("Include inst\n");
+        inclusion = new include_inst();
     } else if (!strncmp(include_policy.c_str(), "write_", 6)) {
         int wrcount = atoi(include_policy.c_str()+6);
+        if (!core) printf("Write threshold %d\n", wrcount);
         inclusion = new include_write_threshold(wrcount);
+    } else if (!strncmp(include_policy.c_str(), "read_", 5)) {
+        int rdcount = atoi(include_policy.c_str()+5);
+        if (!core) printf("Read threshold %d\n", rdcount);
+        inclusion = new include_read_threshold(rdcount);
     } else if (!strncmp(include_policy.c_str(), "rand_", 5)) {
         int randpct = atoi(include_policy.c_str()+5);
+        if (!core) printf("Random %d%% insert\n", randpct);
         inclusion = new include_random(randpct);
+    } else if (!strncmp(include_policy.c_str(), "cbloom_", 7)) {
+        int hashcount = atoi(include_policy.c_str()+7);
+        int threshold = atoi(include_policy.c_str()+9);
+        int bloomsize = atoi(include_policy.c_str()+12);
+        if (!core) printf("Bloom filter clean insert hc=%d thr=%d size=%d\n", hashcount, threshold, bloomsize);
+        inclusion = new include_bloom(bloomsize, hashcount, threshold, true);
     } else if (!strncmp(include_policy.c_str(), "bloom_", 6)) {
-        int bloomsize = atoi(include_policy.c_str()+6);
-        inclusion = new include_bloom(bloomsize);
+        int hashcount = atoi(include_policy.c_str()+6);
+        int threshold = atoi(include_policy.c_str()+8);
+        int bloomsize = atoi(include_policy.c_str()+11);
+        if (!core) printf("Bloom filter all insert hc=%d thr=%d size=%d\n", hashcount, threshold, bloomsize);
+        inclusion = new include_bloom(bloomsize, hashcount, threshold, false);
     } else {
         return false;
     }
@@ -173,6 +193,7 @@ caching_device_t::evict(int block_idx, int way) {
     b.tag = TAG_INVALID;
     b.wrcount = 0;
     b.rdcount = 0;
+    b.recent_updates = 0;
     b.everinst = false;
     b.dirty = false;
 }
@@ -188,8 +209,8 @@ caching_device_t::request(const ext_memref_t &ext_memref_in)
     bool is_evict = ext_memref_in.evict;
     
     // Disregard totally unused subordinate evictions
-    if (is_evict && !ext_memref_in.rdcount && !ext_memref_in.wrcount)
-        return;
+    //if (is_evict && !ext_memref_in.rdcount && !ext_memref_in.wrcount)
+        //return;
 
     // If allocation is being done on misses and this is a clean evict, disregard
     if (!alloc_on_evict && is_evict && ext_memref_in.wrcount == 0)
@@ -238,16 +259,16 @@ caching_device_t::request(const ext_memref_t &ext_memref_in)
                 get_caching_device_block(block_idx, way).rdcount += ext_memref_in.rdcount;
                 get_caching_device_block(block_idx, way).wrcount += ext_memref_in.wrcount;
                 if (type_is_write(ext_memref.ref.data.type)) {
-                    write_update(block_idx, way);
                     get_caching_device_block(block_idx, way).dirty = true;
                     get_caching_device_block(block_idx, way).wrcount++;
                     if (evict_after_n_writes && get_caching_device_block(block_idx, way).wrcount >= evict_after_n_writes) {
                         evict(block_idx, way);
                         break;
                     }
+                    write_update(block_idx, way);
                 } else {
                     get_caching_device_block(block_idx, way).rdcount++;
-	        	    get_caching_device_block(block_idx, way).everinst |= ext_memref_in.inst;
+               	    get_caching_device_block(block_idx, way).everinst |= ext_memref_in.inst;
                 }
                 if (!is_evict) { // || ext_memref_in.wrcount) {
     	            stats->access(ext_memref.ref, true/*hit*/);
@@ -331,6 +352,13 @@ void
 caching_device_t::write_update(int block_idx, int way)
 {
     get_caching_device_block(block_idx, way).wearout_counter++;
+}
+
+void
+caching_device_t::reset_wearout()
+{
+    for (int i=0; i<num_blocks; i++)
+        blocks[i]->wearout_counter = 0;
 }
 
 void
