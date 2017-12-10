@@ -53,7 +53,7 @@ class caching_device_block_t
     // we expect any use of counter to only occur *after* a valid tag is put in place,
     // where for the current replacement code we also set the counter at that time.
     caching_device_block_t() : tag(TAG_INVALID), dirty(false), everinst(false), rdcount(0), 
-    wrcount(0), counter(0), wearout_counter(0) {}
+    wrcount(0), recent_updates(0), counter(0), wearout_counter(0) {}
     // Destructor must be virtual and default is not.
     virtual ~caching_device_block_t() {}
 
@@ -62,6 +62,7 @@ class caching_device_block_t
     bool everinst;
     int rdcount;
     int wrcount;
+    int recent_updates;
 
     // XXX: using int_least64_t here results in a ~4% slowdown for 32-bit apps.
     // A 32-bit counter should be sufficient but we may want to revisit.
