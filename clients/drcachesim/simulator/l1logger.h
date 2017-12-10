@@ -9,11 +9,11 @@
 #include <boost/iostreams/filter/bzip2.hpp>
 
 class l1logger {
-    bool active;
     std::ofstream out_stream;
     boost::iostreams::filtering_ostream output;
     char buf[1000];
 public:
+    bool active;
     l1logger(const std::string &out_file) {
         if (out_file.empty()) {
             active = false;
