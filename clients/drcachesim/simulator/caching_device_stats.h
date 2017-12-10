@@ -71,6 +71,10 @@ class caching_device_stats_t
 
     virtual bool operator!() { return !success; }
 
+    int_least64_t num_hits;
+    int_least64_t num_misses;
+    int_least64_t num_child_hits;
+
  protected:
     bool success;
 
@@ -85,10 +89,6 @@ class caching_device_stats_t
     int_least64_t dirty_evicts;
 
     int_least64_t num_instructions;
-
-    int_least64_t num_hits;
-    int_least64_t num_misses;
-    int_least64_t num_child_hits;
 
     // We provide a feature of dumping misses to a file.
     bool dump_misses;

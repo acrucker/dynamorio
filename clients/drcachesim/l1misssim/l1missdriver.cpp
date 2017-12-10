@@ -305,7 +305,7 @@ int main(int argc, char **argv) {
             l4cache->get_stats()->reset();
             l3cache->reset_wearout();
             l4cache->reset_wearout();
-        } else if (total_misses > sim_misses) {   
+        } else if (total_misses > sim_misses + warmup_misses) {   
             printf("Hit miss simulation threshold.\n");
             break;
         }
@@ -343,8 +343,6 @@ int main(int argc, char **argv) {
             memref.wrcount = _wrcnt;
             memref.ref.data.size = 1;
             memref.ref.data.addr = _a;
-            memref.rdcount = _rdcnt;
-            memref.wrcount = _wrcnt;
             memref.evict = true;
             ievictcnt++;
             //printf("Handling i-evict to  %16lX at core %d.\n", _a, _c);
@@ -402,9 +400,9 @@ int main(int argc, char **argv) {
     printf("\tL1D MPKI: %6.2f\n", 1000.0*dmisscnt/total_insts);
     printf("\tTotal %lu ievict, %lu devict.\n", ievictcnt, devictcnt);
     std::cout << "Cache simulation results:\n";
+    int_least64_t max_wearout, total_wearout;  
+    int num_blocks;
     if (L2_unify_stats) {
-        int_least64_t max_wearout, total_wearout;  
-        int num_blocks;
         std::string prefix = "    ";
         max_wearout = total_wearout = 0;
         std::cout << "L2 unified stats:" << std::endl;
@@ -439,6 +437,11 @@ int main(int argc, char **argv) {
     l4cache->get_stats()->print_stats("    ");
     std::cout << "L4 wearout stats:" << std::endl;
     l4cache->print_wearout("    ");
+
+    if (L2_unify_stats) {
+    std::cout << "STATSHEAD Configuration TotalInst L1IMiss L1DMiss L2Miss L3Miss L4Miss L2Updates L3Updates L4Updates" << std::endl;
+    std::cout<< "STATSDATA " << L2_evict_after_write << "."<< L2_insert_policy << " " << total_insts << " " << imisscnt << " " << dmisscnt << " " << l2caches[0]->get_stats()->num_misses << " " << l3cache->get_stats()->num_misses << " " << l4cache->get_stats()->num_misses << " " << total_wearout << " " << l3cache->total_wearout() << " " << l4cache->total_wearout() << std::endl;
+    }
 
     delete l2logger;
 
